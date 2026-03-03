@@ -858,6 +858,7 @@ async def trigger_scrape_all(background_tasks: BackgroundTasks, db: Session = De
         ("wttj", WelcomeToTheJungleScraper),
     ]
 
+    import asyncio
     from database import SessionLocal
 
     async def run_all_scrapers_bg():
@@ -865,24 +866,20 @@ async def trigger_scrape_all(background_tasks: BackgroundTasks, db: Session = De
         if global_scraping_status["is_running"]:
             return
         global_scraping_status["is_running"] = True
-        global_scraping_status["progress"] = 0
-        global_scraping_status["message"] = "Démarrage du scraping global..."
-        global_scraping_status["details"] = ""
+        global_scraping_status["progress"] = 5
+        global_scraping_status["message"] = "Lancement en parallèle..."
+        global_scraping_status["details"] = "Démarrage des scrapers simultanés"
         
         total = len(scrapers_list)
-        for idx, (source_name, scraper_class) in enumerate(scrapers_list):
+        completed = 0
+        
+        async def scrape_and_save(source_name, scraper_class):
+            nonlocal completed
             bg_db = SessionLocal()
             try:
-                base_prog = int((idx / total) * 100)
-                global_scraping_status["progress"] = base_prog + 5
-                global_scraping_status["message"] = f"Scraping en cours ({idx + 1}/{total})"
-                global_scraping_status["details"] = f"Recherche sur {source_name}..."
-                
                 scraper = scraper_class()
                 offers = await scraper.run()
                 
-                global_scraping_status["progress"] = base_prog + int((0.8 / total) * 100)
-                global_scraping_status["details"] = f"Enregistrement de {len(offers)} offres de {source_name}..."
                 new_count = 0
                 for offer_data in offers:
                     existing = None
@@ -904,9 +901,16 @@ async def trigger_scrape_all(background_tasks: BackgroundTasks, db: Session = De
             except Exception as e:
                 bg_db.rollback()
                 print(f"Scraping error for {source_name}: {e}")
-                global_scraping_status["details"] = f"Erreur sur {source_name}: {e}"
             finally:
                 bg_db.close()
+                completed += 1
+                prog = int((completed / total) * 95) + 5
+                global_scraping_status["progress"] = prog
+                global_scraping_status["message"] = f"Analyse en cours ({completed}/{total})"
+                global_scraping_status["details"] = f"{source_name} terminé"
+
+        tasks = [scrape_and_save(name, cls) for name, cls in scrapers_list]
+        await asyncio.gather(*tasks, return_exceptions=True)
                 
         global_scraping_status["progress"] = 100
         global_scraping_status["message"] = "Terminé"

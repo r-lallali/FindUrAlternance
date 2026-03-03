@@ -200,8 +200,20 @@ document.addEventListener('DOMContentLoaded', () => {
     async function handleScrape() {
         if (scrapePollInterval) return; // Already running
 
+        // Implement 30-minute cooldown
+        const lastScrape = localStorage.getItem('lastScrapeTime');
+        const now = Date.now();
+        const cooldown = 30 * 60 * 1000; // 30 minutes in ms
+
+        if (lastScrape && (now - parseInt(lastScrape)) < cooldown) {
+            const remaining = Math.ceil((cooldown - (now - parseInt(lastScrape))) / 60000);
+            showToast(`Veuillez patienter ${remaining} minute${remaining > 1 ? 's' : ''} avant la prochaine actualisation.`, 'warning');
+            return;
+        }
+
         try {
             await API.scrapeAll();
+            localStorage.setItem('lastScrapeTime', now.toString());
             showToast('Le scraping a démarré en tâche de fond.', 'success');
             scrapePollInterval = setInterval(checkScrapeStatus, 2000);
             checkScrapeStatus();

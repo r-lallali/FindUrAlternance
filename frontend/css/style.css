@@ -1030,7 +1030,7 @@ a:hover {
 /* ===== TOAST NOTIFICATIONS ===== */
 .toast-container {
     position: fixed;
-    top: 16px;
+    top: 80px;
     right: 16px;
     z-index: 2000;
     display: flex;

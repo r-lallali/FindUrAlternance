@@ -372,6 +372,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const generalStats = cachedGeneralStats;
 
 
+            // Load timeline chart
+            loadTimelineChart();
 
             renderBarChart('chartCompanies', stats.top_companies, 'fw', 'keyword');
             renderBarChart('chartDepartments', stats.top_departments, 'tool', 'department');
@@ -388,8 +390,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 { name: 'Bac+2 / BTS / DUT', count: generalStats.bac2_offers || 0, filterValue: 'bac+2' },
             ].filter(d => d.count > 0);
             renderBarChart('chartEducation', edData, 'cert', 'profile');
-        } catch {
-            document.getElementById('statsSubtitle').textContent = 'Erreur lors du chargement.';
+        } catch (err) {
+            console.error('Stats loading error:', err);
         }
     }
 

@@ -88,7 +88,7 @@ class LinkedInScraper(BaseScraper):
                         offers = await self._search_page(client, term, geo_id, start)
 
                         # Fetch descriptions with concurrency limit to avoid 429
-                        semaphore = asyncio.Semaphore(2)
+                        semaphore = asyncio.Semaphore(5)
 
                         async def enrich_desc(off):
                             j_id = off.get("_id")
@@ -106,8 +106,8 @@ class LinkedInScraper(BaseScraper):
                                 seen_ids.add(oid)
                                 all_offers.append(offer)
 
-                        # Rate limiting
-                        await asyncio.sleep(2.5)
+                        # Rate limiting (reduced for speed, handled by semaphore)
+                        await asyncio.sleep(0.5)
                     except Exception as e:
                         self.logger.warning(f"Error on LinkedIn page {page} for '{term}': {e}")
 
@@ -157,7 +157,6 @@ class LinkedInScraper(BaseScraper):
     async def _fetch_description(self, client: httpx.AsyncClient, job_id: str) -> Optional[str]:
         """Fetch the job description from its LinkedIn public page."""
         try:
-            await asyncio.sleep(0.5)
             url = f"https://www.linkedin.com/jobs/view/{job_id}/"
             response = await client.get(url)
             if response.status_code == 200:

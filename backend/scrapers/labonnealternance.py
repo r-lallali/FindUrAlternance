@@ -68,27 +68,40 @@ class LaBonneAlternanceScraper(BaseScraper):
         else:
             codes_to_search = rome_codes
 
+        import asyncio
         all_offers = []
         seen_ids = set()
 
-        # Search for each city with batches of ROME codes
+        semaphore = asyncio.Semaphore(5)
+
+        async def fetch_batch(city, batch):
+            async with semaphore:
+                try:
+                    return await self._search(
+                        rome_codes=batch,
+                        insee=city["insee"],
+                        latitude=city["lat"],
+                        longitude=city["lon"],
+                        radius=radius,
+                    )
+                except Exception as e:
+                    self.logger.warning(f"Error in LBA search for {city['name']} batch {batch}: {e}")
+                    return []
+
+        tasks = []
         for city in cities:
-            batch_size = 3
+            batch_size = 5 # increased batch size for parallel
             for i in range(0, len(codes_to_search), batch_size):
                 batch = codes_to_search[i:i + batch_size]
-                offers = await self._search(
-                    rome_codes=batch,
-                    insee=city["insee"],
-                    latitude=city["lat"],
-                    longitude=city["lon"],
-                    radius=radius,
-                )
-                # Deduplicate within this scrape run
-                for offer in offers:
-                    offer_id = offer.get("id", "")
-                    if offer_id and offer_id not in seen_ids:
-                        seen_ids.add(offer_id)
-                        all_offers.append(offer)
+                tasks.append(fetch_batch(city, batch))
+        
+        results = await asyncio.gather(*tasks)
+        for offers in results:
+            for offer in offers:
+                offer_id = offer.get("id", "")
+                if offer_id and offer_id not in seen_ids:
+                    seen_ids.add(offer_id)
+                    all_offers.append(offer)
 
         self.logger.info(f"Total unique raw offers collected: {len(all_offers)}")
         return all_offers

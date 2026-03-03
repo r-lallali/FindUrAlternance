@@ -50,46 +50,50 @@ class WelcomeToTheJungleScraper(BaseScraper):
         seen_ids = set()
 
         async with httpx.AsyncClient(timeout=30.0) as client:
-            for query in queries:
-                for page in range(0, max_pages):
+            semaphore = asyncio.Semaphore(5)
+
+            async def fetch_page(query: str, page: int):
+                async with semaphore:
                     try:
                         payload = {
                             "query": query,
                             "hitsPerPage": hits_per_page,
                             "page": page,
                         }
-
                         res = await client.post(
                             self.ALGOLIA_URL,
                             json=payload,
                             headers=self.HEADERS,
                         )
-
                         if res.status_code != 200:
                             self.logger.warning(
                                 f"WTTJ Algolia HTTP {res.status_code}: {res.text[:200]}"
                             )
-                            continue
-
+                            return []
                         data = res.json()
                         hits = data.get("hits", [])
-
-                        if not hits:
-                            break  # No more results for this query
-
-                        for hit in hits:
-                            obj_id = hit.get("objectID", "")
-                            if obj_id and obj_id not in seen_ids:
-                                seen_ids.add(obj_id)
-                                all_offers.append(hit)
-
                         self.logger.debug(
                             f"WTTJ query='{query}' page={page}: {len(hits)} hits"
                         )
-
-                        await asyncio.sleep(1)  # rate limit
+                        return hits
                     except Exception as e:
                         self.logger.error(f"WTTJ scrape error: {e}")
+                        return []
+
+            tasks = []
+            for query in queries:
+                for page in range(0, max_pages):
+                    tasks.append(fetch_page(query, page))
+
+            results = await asyncio.gather(*tasks, return_exceptions=True)
+            for hits in results:
+                if isinstance(hits, Exception) or not hits:
+                    continue
+                for hit in hits:
+                    obj_id = hit.get("objectID", "")
+                    if obj_id and obj_id not in seen_ids:
+                        seen_ids.add(obj_id)
+                        all_offers.append(hit)
 
         self.logger.info(f"WTTJ collected {len(all_offers)} raw items")
         return all_offers

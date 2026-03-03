@@ -44,17 +44,28 @@ class HelloWorkScraper(BaseScraper):
         async with httpx.AsyncClient(
             timeout=30.0, headers=self.HEADERS, follow_redirects=True
         ) as client:
+            semaphore = asyncio.Semaphore(4)
+            
+            async def fetch_page(kw: str, p: int):
+                async with semaphore:
+                    return await self._scrape_page(client, kw, p)
+
+            tasks = []
             for keyword in keywords:
                 for page in range(1, max_pages + 1):
-                    offers = await self._scrape_page(client, keyword, page)
-                    for raw in offers:
-                        offer_id = raw.get("_id", "")
-                        if offer_id and offer_id not in seen_ids:
-                            seen_ids.add(offer_id)
-                            all_offers.append(raw)
-                        elif not offer_id:
-                            all_offers.append(raw)
-                    await asyncio.sleep(2)  # rate limit
+                    tasks.append(fetch_page(keyword, page))
+            
+            results = await asyncio.gather(*tasks, return_exceptions=True)
+            for offers in results:
+                if isinstance(offers, Exception) or not offers:
+                    continue
+                for raw in offers:
+                    offer_id = raw.get("_id", "")
+                    if offer_id and offer_id not in seen_ids:
+                        seen_ids.add(offer_id)
+                        all_offers.append(raw)
+                    elif not offer_id:
+                        all_offers.append(raw)
 
         self.logger.info(f"HelloWork collected {len(all_offers)} raw items")
         return all_offers

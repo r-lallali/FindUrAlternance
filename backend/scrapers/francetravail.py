@@ -63,19 +63,28 @@ class FranceTravailScraper(BaseScraper):
             headers=self.HEADERS,
             follow_redirects=True,
         ) as client:
-            for term in search_terms:
-                for page in range(1, max_pages + 1):
+            semaphore = asyncio.Semaphore(3)
+
+            async def fetch_term_page(term, page):
+                async with semaphore:
                     try:
-                        offers = await self._search_page(client, term, page)
-                        for offer in offers:
-                            oid = offer.get("_id", "")
-                            if oid and oid not in seen_ids:
-                                seen_ids.add(oid)
-                                all_offers.append(offer)
-                        # Rate limiting
-                        await asyncio.sleep(1.5)
+                        return await self._search_page(client, term, page)
                     except Exception as e:
                         self.logger.warning(f"Error scraping page {page} for '{term}': {e}")
+                        return []
+
+            tasks = []
+            for term in search_terms:
+                for page in range(1, max_pages + 1):
+                    tasks.append(fetch_term_page(term, page))
+            
+            results = await asyncio.gather(*tasks)
+            for offers in results:
+                for offer in offers:
+                    oid = offer.get("_id", "")
+                    if oid and oid not in seen_ids:
+                        seen_ids.add(oid)
+                        all_offers.append(offer)
 
         self.logger.info(f"France Travail: {len(all_offers)} unique offers collected")
         return all_offers

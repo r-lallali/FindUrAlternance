@@ -136,16 +136,13 @@ document.addEventListener('DOMContentLoaded', () => {
         const btn = document.getElementById('btnScrape');
         btn.disabled = true;
         btn.classList.add('loading');
-        btn.textContent = 'Scraping...';
+        btn.textContent = 'Démarrage...';
 
         try {
-            const results = await API.scrapeAll();
-            let totalNew = 0;
-            for (const r of results) totalNew += r.offers_new || 0;
-            showToast(`${totalNew} nouvelles offres ajoutées.`, 'success');
-            await Promise.all([loadStats(), loadFilters(), loadOffers()]);
+            await API.scrapeAll();
+            showToast('Le scraping a démarré en tâche de fond. Actualisez dans quelques minutes.', 'success');
         } catch (error) {
-            showToast('Erreur lors du scraping.', 'error');
+            showToast('Erreur lors du lancement du scraping.', 'error');
         } finally {
             btn.disabled = false;
             btn.classList.remove('loading');

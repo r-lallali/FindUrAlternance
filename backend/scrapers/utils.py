@@ -5,16 +5,53 @@ from typing import Optional
 
 # Keywords that indicate an offer is from a school rather than a company
 SCHOOL_KEYWORDS = [
+    # Generic school terms
     "école", "ecole", "campus", "institut", "cfa", "centre de formation",
     "formation professionnelle", "lycée", "lycee", "université", "universite",
     "iut", "bts", "académie", "academie", "enseignement", "pédagogique",
     "pedagogique", "scolaire", "éducation", "education nationale",
+    "école supérieure", "ecole superieure", "grande école", "grande ecole",
+    "organisme de formation", "centre d'apprentissage",
+    # Well-known IT/engineering schools
     "esiea", "epitech", "epita", "supinfo", "isen", "efrei",
     "isep", "ece", "esilv", "emlyon", "escp", "essec", "hec",
     "kedge", "skema", "neoma", "audencia", "grenoble em",
-    "école supérieure", "ecole superieure", "grande école", "grande ecole",
-    "organisme de formation", "centre d'apprentissage",
-    "iscod",
+    # Alternance-focused training schools (often post as "companies")
+    "iscod", "icademie", "i-cademie", "livecampus", "live campus",
+    "aurlom", "2i academy", "2iacademy", "openclassrooms", "open classrooms",
+    "studi", "doranco", "ifocop", "aftec", "pigier", "cogefi",
+    "comptalia", "aftral", "afpa", "greta", "cesi", "enaco",
+    "esecad", "efc", "cnfdi", "skill and you", "skillandyou",
+    "visiplus", "digital campus", "digital school", "digital college",
+    "hetic", "web@cadémie", "webacademie", "wild code school",
+    "wildcodeschool", "le wagon", "lewagon", "la capsule",
+    "iron hack", "ironhack", "simplon", "pop school", "popschool",
+    "rocket school", "rocketschool", "holberton", "ada tech school",
+    "adatechschool", "o'clock", "oclock", "école 42", "ecole 42",
+    "3wa", "3w academy", "3wacademy", "webitech", "webtech",
+    "sup de vinci", "supdevinci", "my digital school", "mydigitalschool",
+    "esgi", "ynov", "next-u", "nextu", "ingetis", "ipi",
+    "esic", "estiam", "itecom", "ican", "isefac", "mbway",
+    "bachelor institute", "ecema", "maestris", "esup",
+    "efficom", "epsi", "wis", "supinfo", "eni ecole",
+    "itescia", "imie", "etna", "esm-a", "esma",
+    "sup career", "supcareer", "igs", "groupe igs",
+    "cfa des sciences", "cfa codeur", "cfa dev", "cfa informatique",
+    "village de l'emploi", "village emploi", "edugroupe",
+    "fitec", "m2i formation", "m2i", "diginamic",
+    "human booster", "humanbooster", "dawan", "ib formation",
+    "ibformation", "plb consultant", "orsys", "cegos",
+    "demos", "global knowledge", "globalknowledge",
+    "al mahir", "almahir", "alma", "issmi",
+    "nextadvance", "next advance", "espl", "sup de pub",
+    "école multimédia", "ecole multimedia",
+    "Sciences-U", "sciences u", "force plus",
+    "alternance azur", "groupe alternance",
+    # Generic patterns
+    "formation en alternance",
+    "notre école", "notre ecole",
+    "notre formation",
+    "rejoignez notre cursus",
 ]
 
 # Keywords in description that suggest the offer is from a school
@@ -26,6 +63,19 @@ SCHOOL_DESCRIPTION_KEYWORDS = [
     "intégrez notre école", "integrez notre ecole",
     "nous formons", "notre cursus",
     "diplôme délivré par notre", "diplome delivre par notre",
+    "nous recherchons pour l'une de nos entreprises partenaires",
+    "nous recherchons pour une de nos entreprises partenaires",
+    "pour le compte de l'une de nos entreprises partenaires",
+    "pour le compte d'une de nos entreprises partenaires",
+    "dans le cadre de notre formation",
+    "postulez à notre formation",
+    "postulez a notre formation",
+    "titre professionnel", "titre rncp",
+    "formation gratuite et rémunérée",
+    "formation gratuite et remuneree",
+    "prise en charge par l'opco",
+    "aucun frais pour le candidat",
+    "aucun frais de formation",
 ]
 
 

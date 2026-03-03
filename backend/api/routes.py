@@ -203,10 +203,66 @@ def _base_query(db: Session):
     return db.query(Offer).filter(
         Offer.is_school == False,  # noqa: E712
         Offer.is_alternance == True,  # noqa: E712
+        # Exclude known training schools / "fake" company offers
         Offer.company.notilike("%iscod%"),
         Offer.company.notilike("%icademie%"),
         Offer.company.notilike("%i-cademie%"),
-        Offer.company.notilike("%livecampus%")
+        Offer.company.notilike("%livecampus%"),
+        Offer.company.notilike("%live campus%"),
+        Offer.company.notilike("%aurlom%"),
+        Offer.company.notilike("%2i academy%"),
+        Offer.company.notilike("%openclassrooms%"),
+        Offer.company.notilike("%studi%"),
+        Offer.company.notilike("%doranco%"),
+        Offer.company.notilike("%ifocop%"),
+        Offer.company.notilike("%pigier%"),
+        Offer.company.notilike("%aftec%"),
+        Offer.company.notilike("%enaco%"),
+        Offer.company.notilike("%esecad%"),
+        Offer.company.notilike("%visiplus%"),
+        Offer.company.notilike("%digital campus%"),
+        Offer.company.notilike("%wild code school%"),
+        Offer.company.notilike("%simplon%"),
+        Offer.company.notilike("%rocket school%"),
+        Offer.company.notilike("%pop school%"),
+        Offer.company.notilike("%village de l'emploi%"),
+        Offer.company.notilike("%village emploi%"),
+        Offer.company.notilike("%groupe alternance%"),
+        Offer.company.notilike("%alternance azur%"),
+        Offer.company.notilike("%mydigitalschool%"),
+        Offer.company.notilike("%my digital school%"),
+        Offer.company.notilike("%ynov%"),
+        Offer.company.notilike("%mbway%"),
+        Offer.company.notilike("%isefac%"),
+        Offer.company.notilike("%bachelor institute%"),
+        Offer.company.notilike("%maestris%"),
+        Offer.company.notilike("%efficom%"),
+        Offer.company.notilike("%epsi%"),
+        Offer.company.notilike("%next-u%"),
+        Offer.company.notilike("%nextu%"),
+        Offer.company.notilike("%sup de vinci%"),
+        Offer.company.notilike("%esgi%"),
+        Offer.company.notilike("%hetic%"),
+        Offer.company.notilike("%holberton%"),
+        Offer.company.notilike("%fitec%"),
+        Offer.company.notilike("%diginamic%"),
+        Offer.company.notilike("%edugroupe%"),
+        Offer.company.notilike("%human booster%"),
+        Offer.company.notilike("%cogefi%"),
+        Offer.company.notilike("%3w academy%"),
+        Offer.company.notilike("%o'clock%"),
+        Offer.company.notilike("%la capsule%"),
+        Offer.company.notilike("%le wagon%"),
+        Offer.company.notilike("%ada tech school%"),
+        Offer.company.notilike("%cfa %"),
+        Offer.company.notilike("%estiam%"),
+        Offer.company.notilike("%itescia%"),
+        Offer.company.notilike("%ingetis%"),
+        Offer.company.notilike("%groupe igs%"),
+        Offer.company.notilike("%sciences-u%"),
+        Offer.company.notilike("%sciences u%"),
+        Offer.company.notilike("%ecema%"),
+        Offer.company.notilike("%skill and you%"),
     )
 
 
@@ -814,3 +870,31 @@ async def fix_missing_dates(db: Session = Depends(get_db)):
     )
     db.commit()
     return {"updated": updated, "message": f"{updated} offres mises à jour avec leur date de scraping."}
+
+
+@router.post("/admin/fix-schools")
+async def fix_school_flags(db: Session = Depends(get_db)):
+    """Re-scan all offers and flag school offers that slipped through."""
+    from scrapers.utils import is_school_offer
+
+    # Get all offers not yet flagged as school
+    offers = db.query(Offer).filter(Offer.is_school == False).all()  # noqa: E712
+    flagged = 0
+    flagged_names = []
+
+    for offer in offers:
+        if is_school_offer(offer.company or "", offer.description or ""):
+            offer.is_school = True
+            flagged += 1
+            flagged_names.append(offer.company)
+
+    db.commit()
+
+    # Get unique school names that were flagged
+    unique_schools = sorted(set(flagged_names))
+
+    return {
+        "flagged": flagged,
+        "unique_schools": unique_schools[:50],
+        "message": f"{flagged} offres marquées comme écoles.",
+    }

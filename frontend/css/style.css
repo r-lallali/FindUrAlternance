@@ -293,32 +293,54 @@ a:hover {
 
 /* ===== TAB NAVIGATION ===== */
 .header-tabs {
-    display: flex;
-    gap: 2px;
+    display: inline-flex;
+    background: var(--bg-input);
+    padding: 3px;
+    border-radius: var(--radius-md);
+    position: relative;
+    gap: 0;
     flex-shrink: 0;
+    z-index: 10;
 }
 
 .tab-btn {
     padding: 6px 16px;
     border: none;
     border-radius: var(--radius-sm);
-    background: transparent;
-    color: var(--text-muted);
+    background: transparent !important;
+    color: var(--text-secondary);
     font-family: inherit;
     font-size: 13px;
-    font-weight: 500;
+    font-weight: 600;
     cursor: pointer;
-    transition: all var(--transition-fast);
+    transition: color var(--transition-normal);
+    position: relative;
+    z-index: 2;
+    min-width: 90px;
 }
 
 .tab-btn:hover {
     color: var(--text-primary);
-    background: var(--bg-input);
 }
 
 .tab-btn.active {
+    color: #ffffff;
+}
+
+[data-theme="light"] .tab-btn.active {
+    color: #ffffff;
+}
+
+.tab-indicator {
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    height: calc(100% - 6px);
     background: var(--accent-primary);
-    color: #fff;
+    border-radius: var(--radius-sm);
+    transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: 1;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }
 
 /* ===== HEADER ACTIONS ===== */

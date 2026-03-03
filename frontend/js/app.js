@@ -31,6 +31,10 @@ document.addEventListener('DOMContentLoaded', () => {
         loadTechStats(true); // silent = true
     }, 500);
 
+    // Initial indicator position
+    setTimeout(updateTabIndicator, 100);
+    window.addEventListener('resize', updateTabIndicator);
+
     const headerLogo = document.getElementById('headerLogo');
     if (headerLogo) {
         headerLogo.addEventListener('click', () => {
@@ -38,6 +42,7 @@ document.addEventListener('DOMContentLoaded', () => {
             tabBtns.forEach((b) => b.classList.remove('active'));
             const offersTab = document.getElementById('tabOffers');
             if (offersTab) offersTab.classList.add('active');
+            updateTabIndicator();
 
             document.getElementById('contentOffers').classList.remove('hidden');
             document.getElementById('contentStats').classList.add('hidden');
@@ -126,15 +131,25 @@ document.addEventListener('DOMContentLoaded', () => {
                 } else if (tab === 'stats') {
                     document.getElementById('contentStats').classList.remove('hidden');
                     if (sidebar) sidebar.classList.add('hidden');
-                    // Always refresh/ensure stats are loaded, but it will be instant if already cached
                     loadTechStats();
                 } else if (tab === 'favorites') {
                     document.getElementById('contentFavorites').classList.remove('hidden');
                     if (sidebar) sidebar.classList.add('hidden');
                     loadFavorites();
                 }
+
+                updateTabIndicator();
             });
         });
+    }
+
+    function updateTabIndicator() {
+        const activeBtn = document.querySelector('.tab-btn.active');
+        const indicator = document.getElementById('tabIndicator');
+        if (!activeBtn || !indicator) return;
+
+        indicator.style.width = `${activeBtn.offsetWidth}px`;
+        indicator.style.left = `${activeBtn.offsetLeft}px`;
     }
 
     // ===== MODAL =====

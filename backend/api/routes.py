@@ -678,7 +678,7 @@ async def get_tech_stats(db: Session = Depends(get_db)):
         .filter(Offer.company.notilike("%confidentiel%"))\
         .group_by(Offer.company)\
         .order_by(desc(func.count(Offer.id)))\
-        .limit(13).all()
+        .limit(15).all()
     
     top_departments_query = base_query.with_entities(Offer.department, func.count(Offer.id))\
         .filter(Offer.department.isnot(None), Offer.department != "")\

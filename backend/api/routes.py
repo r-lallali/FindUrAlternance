@@ -263,6 +263,21 @@ def _base_query(db: Session):
         Offer.company.notilike("%sciences u%"),
         Offer.company.notilike("%ecema%"),
         Offer.company.notilike("%skill and you%"),
+        Offer.company.notilike("%scholia%"),
+        Offer.company.notilike("%livementor%"),
+        Offer.company.notilike("%cybersup%"),
+        Offer.company.notilike("%stephenson formation%"),
+        Offer.company.notilike("%avlis formation%"),
+        Offer.company.notilike("%stand up formation%"),
+        Offer.company.notilike("%pro-fyl%"),
+        Offer.company.notilike("%arefip%"),
+        Offer.company.notilike("%ima business school%"),
+        Offer.company.notilike("%cfi formation%"),
+        Offer.company.notilike("%cma formation%"),
+        Offer.company.notilike("%directt formation%"),
+        Offer.company.notilike("%nexa digital%"),
+        Offer.company.notilike("%formation alternance superieure%"),
+        Offer.company.notilike("%organisation formations informatiques%"),
     )
 
 

@@ -1372,7 +1372,7 @@ a:hover {
     justify-content: space-between !important;
     align-items: center !important;
     gap: 16px !important;
-    margin-bottom: 7px !important;
+    margin-bottom: 0px !important;
     width: 100% !important;
     flex-wrap: nowrap !important;
 }
@@ -1383,7 +1383,7 @@ a:hover {
     color: var(--text-secondary) !important;
     text-transform: uppercase !important;
     letter-spacing: 0.8px !important;
-    margin-bottom: 7px !important;
+    margin-bottom: 0px !important;
 }
 
 .stats-panel-header .stats-panel-title {

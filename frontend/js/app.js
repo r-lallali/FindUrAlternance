@@ -484,22 +484,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 const shortYear = year.substring(2);
 
                 if (scale === 'week') {
-                    // Start of the week calculation
-                    const date = new Date(parseInt(year, 10), 0, 1 + (value - 1) * 7);
-                    const mm = String(date.getMonth() + 1).padStart(2, '0');
-                    const dd = String(date.getDate()).padStart(2, '0');
-
                     if (isTooltip) {
-                        // More precise for tooltip: Day/Month/Year
+                        const date = new Date(parseInt(year, 10), 0, 1 + (value - 1) * 7);
+                        const mm = String(date.getMonth() + 1).padStart(2, '0');
+                        const dd = String(date.getDate()).padStart(2, '0');
                         return `${dd}/${mm}/${shortYear}`;
                     }
-                    // As requested: Month/Year
-                    return `${mm}/${shortYear}`;
+                    return `S${value} ${year}`;
                 }
 
                 // Monthly
-                const mm = String(value).padStart(2, '0');
-                return `${mm}/${shortYear}`;
+                return `${MONTH_NAMES_FR[value - 1]} ${year}`;
             } catch { return periodStr; }
         }
 

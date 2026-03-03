@@ -1383,6 +1383,10 @@ a:hover {
     color: var(--text-secondary) !important;
     text-transform: uppercase !important;
     letter-spacing: 0.8px !important;
+    margin-bottom: 48px !important;
+}
+
+.stats-panel-header .stats-panel-title {
     margin-bottom: 0 !important;
 }
 

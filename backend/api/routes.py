@@ -720,6 +720,8 @@ async def trigger_scrape(source: str, background_tasks: BackgroundTasks, db: Ses
                 else:
                     if not existing.description and offer_data.get("description"):
                         existing.description = offer_data["description"]
+                    if not existing.publication_date and offer_data.get("publication_date"):
+                        existing.publication_date = offer_data["publication_date"]
             bg_db.commit()
             print(f"Scraping completed for {source_name}. {new_count} new offers added.")
         except Exception as e:
@@ -777,6 +779,8 @@ async def trigger_scrape_all(background_tasks: BackgroundTasks, db: Session = De
                     else:
                         if not existing.description and offer_data.get("description"):
                             existing.description = offer_data["description"]
+                        if not existing.publication_date and offer_data.get("publication_date"):
+                            existing.publication_date = offer_data["publication_date"]
                 bg_db.commit()
                 print(f"Scraping completed for {source_name}. {new_count} new offers added.")
             except Exception as e:
@@ -798,3 +802,15 @@ async def trigger_scrape_all(background_tasks: BackgroundTasks, db: Session = De
         ))
 
     return results
+
+
+@router.post("/admin/fix-dates")
+async def fix_missing_dates(db: Session = Depends(get_db)):
+    """Backfill publication_date with scraped_at for offers that have no date."""
+    updated = (
+        db.query(Offer)
+        .filter(Offer.publication_date.is_(None), Offer.scraped_at.isnot(None))
+        .update({Offer.publication_date: Offer.scraped_at}, synchronize_session=False)
+    )
+    db.commit()
+    return {"updated": updated, "message": f"{updated} offres mises à jour avec leur date de scraping."}

@@ -72,6 +72,9 @@ const API = (() => {
         getTechStats() {
             return request('/stats/tech');
         },
+        getTimelineStats() {
+            return request('/stats/timeline');
+        },
 
         // ── Scraping ──
         scrapeAll() {

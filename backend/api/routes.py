@@ -643,6 +643,30 @@ async def get_tech_stats(db: Session = Depends(get_db)):
     )
 
 
+@router.get("/stats/timeline")
+async def get_timeline_stats(db: Session = Depends(get_db)):
+    """Get offer counts grouped by month for the timeline chart (up to 10 years back)."""
+    base_query = _base_query(db)
+    cutoff = datetime.utcnow() - timedelta(days=365 * 10)
+
+    results = (
+        base_query
+        .with_entities(
+            func.strftime("%Y-%m", Offer.publication_date).label("month"),
+            func.count(Offer.id).label("count"),
+        )
+        .filter(
+            Offer.publication_date.isnot(None),
+            Offer.publication_date >= cutoff,
+        )
+        .group_by(func.strftime("%Y-%m", Offer.publication_date))
+        .order_by(func.strftime("%Y-%m", Offer.publication_date))
+        .all()
+    )
+
+    return [{"month": row.month, "count": row.count} for row in results]
+
+
 # ═══════════════════════════════════════════════════════
 # SCRAPING ENDPOINTS
 # ═══════════════════════════════════════════════════════

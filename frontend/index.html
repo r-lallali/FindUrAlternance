@@ -15,7 +15,7 @@
         <!-- HEADER -->
         <header class="header">
             <div class="header-content">
-                <div class="logo">
+                <div class="logo" id="headerLogo" style="cursor: pointer;" title="Retour aux offres">
                     <img src="img/logo.png" alt="FUA Logo" class="logo-icon-img">
                     <div>
                         <div class="logo-text">FUA</div>
@@ -144,6 +144,14 @@
                         <p class="stats-subtitle" id="statsSubtitle">Chargement...</p>
                     </div>
                     <div class="stats-grid">
+                        <div class="stats-panel stats-panel-wide">
+                            <h3 class="stats-panel-title">Évolution du nombre d'offres</h3>
+                            <div class="timeline-chart-container" id="timelineChartContainer">
+                                <canvas id="timelineCanvas"></canvas>
+                                <div class="timeline-tooltip" id="timelineTooltip"></div>
+                                <div class="stats-loading" id="timelineLoading">Chargement...</div>
+                            </div>
+                        </div>
                         <div class="stats-panel">
                             <h3 class="stats-panel-title">Langages de programmation</h3>
                             <div class="stats-bars" id="chartLanguages">

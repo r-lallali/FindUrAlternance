@@ -1401,6 +1401,41 @@ a:hover {
     padding: 24px 16px;
 }
 
+/* ===== TIMELINE CHART ===== */
+.timeline-chart-container {
+    position: relative;
+    width: 100%;
+    min-height: 280px;
+}
+
+.timeline-chart-container canvas {
+    display: block;
+    width: 100%;
+}
+
+.timeline-chart-container .stats-loading {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+}
+
+.timeline-tooltip {
+    display: none;
+    position: absolute;
+    background: var(--bg-card);
+    border: 1px solid var(--border-hover);
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-size: 12px;
+    color: var(--text-primary);
+    pointer-events: none;
+    z-index: 10;
+    box-shadow: var(--shadow-md);
+    line-height: 1.5;
+    white-space: nowrap;
+}
+
 /* Stats responsive */
 @media (max-width: 1024px) {
     .stats-grid {

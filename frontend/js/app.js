@@ -20,6 +20,26 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnScrape = document.getElementById('btnScrape');
     if (btnScrape) btnScrape.addEventListener('click', handleScrape);
 
+    const headerLogo = document.getElementById('headerLogo');
+    if (headerLogo) {
+        headerLogo.addEventListener('click', () => {
+            const tabBtns = document.querySelectorAll('.tab-btn');
+            tabBtns.forEach((b) => b.classList.remove('active'));
+            const offersTab = document.getElementById('tabOffers');
+            if (offersTab) offersTab.classList.add('active');
+
+            document.getElementById('contentOffers').classList.remove('hidden');
+            document.getElementById('contentStats').classList.add('hidden');
+            document.getElementById('contentFavorites').classList.add('hidden');
+
+            const sidebar = document.querySelector('.sidebar');
+            if (sidebar) sidebar.classList.remove('hidden');
+
+            Filters.reset(false);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        });
+    }
+
     // ===== THEME =====
     function initTheme() {
         const saved = localStorage.getItem('fua-theme') || 'dark';
@@ -309,6 +329,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // ===== TECH STATISTICS =====
     let cachedTechStats = null;
     let cachedGeneralStats = null;
+    let cachedTimelineStats = null;
 
     async function loadTechStats() {
         try {
@@ -320,6 +341,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
             document.getElementById('statsSubtitle').textContent =
                 `${formatNumber(stats.total_it_offers)} offres IT analysées sur ${formatNumber(stats.total_offers)} offres totales`;
+
+            // Load timeline chart
+            loadTimelineChart();
 
             renderBarChart('chartCompanies', stats.top_companies, 'fw', 'keyword');
             renderBarChart('chartDepartments', stats.top_departments, 'tool', 'department');
@@ -339,6 +363,239 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch {
             document.getElementById('statsSubtitle').textContent = 'Erreur lors du chargement.';
         }
+    }
+
+    // ===== TIMELINE CHART =====
+    async function loadTimelineChart() {
+        const loading = document.getElementById('timelineLoading');
+        const canvas = document.getElementById('timelineCanvas');
+        try {
+            if (!cachedTimelineStats) cachedTimelineStats = await API.getTimelineStats();
+            if (loading) loading.style.display = 'none';
+            if (cachedTimelineStats && cachedTimelineStats.length > 0) {
+                renderTimelineChart(cachedTimelineStats);
+            } else {
+                if (loading) { loading.style.display = 'block'; loading.textContent = 'Aucune donnée disponible.'; }
+            }
+        } catch {
+            if (loading) { loading.style.display = 'block'; loading.textContent = 'Erreur de chargement.'; }
+        }
+    }
+
+    function renderTimelineChart(data) {
+        const container = document.getElementById('timelineChartContainer');
+        const canvas = document.getElementById('timelineCanvas');
+        const tooltip = document.getElementById('timelineTooltip');
+        if (!canvas || !data || data.length === 0) return;
+
+        const ctx = canvas.getContext('2d');
+        const dpr = window.devicePixelRatio || 1;
+
+        const MONTH_NAMES_FR = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Août', 'Sep', 'Oct', 'Nov', 'Déc'];
+
+        function resize() {
+            const rect = container.getBoundingClientRect();
+            canvas.width = rect.width * dpr;
+            canvas.height = 280 * dpr;
+            canvas.style.width = rect.width + 'px';
+            canvas.style.height = '280px';
+            ctx.scale(dpr, dpr);
+        }
+
+        function getThemeColors() {
+            const style = getComputedStyle(document.documentElement);
+            return {
+                line: style.getPropertyValue('--accent-primary').trim() || '#3b82f6',
+                lineLight: style.getPropertyValue('--accent-primary-light').trim() || '#60a5fa',
+                text: style.getPropertyValue('--text-muted').trim() || '#666',
+                textSecondary: style.getPropertyValue('--text-secondary').trim() || '#a3a3a3',
+                grid: style.getPropertyValue('--border').trim() || '#1f1f1f',
+                bg: style.getPropertyValue('--bg-card').trim() || '#111',
+                textPrimary: style.getPropertyValue('--text-primary').trim() || '#f5f5f5',
+            };
+        }
+
+        function formatLabel(monthStr) {
+            const [year, month] = monthStr.split('-');
+            return `${MONTH_NAMES_FR[parseInt(month, 10) - 1]} ${year}`;
+        }
+
+        function draw() {
+            resize();
+            const colors = getThemeColors();
+            const w = canvas.width / dpr;
+            const h = canvas.height / dpr;
+
+            const padding = { top: 20, right: 20, bottom: 40, left: 50 };
+            const chartW = w - padding.left - padding.right;
+            const chartH = h - padding.top - padding.bottom;
+
+            ctx.clearRect(0, 0, w, h);
+
+            const counts = data.map(d => d.count);
+            const maxCount = Math.max(...counts);
+            const minCount = 0;
+            const range = maxCount - minCount || 1;
+
+            // Y-axis grid lines and labels
+            const yTicks = 5;
+            ctx.textAlign = 'right';
+            ctx.textBaseline = 'middle';
+            ctx.font = '11px Inter, sans-serif';
+
+            for (let i = 0; i <= yTicks; i++) {
+                const val = Math.round(minCount + (range * i) / yTicks);
+                const y = padding.top + chartH - (chartH * i) / yTicks;
+
+                ctx.strokeStyle = colors.grid;
+                ctx.lineWidth = 0.5;
+                ctx.beginPath();
+                ctx.moveTo(padding.left, y);
+                ctx.lineTo(w - padding.right, y);
+                ctx.stroke();
+
+                ctx.fillStyle = colors.text;
+                ctx.fillText(val.toLocaleString('fr-FR'), padding.left - 8, y);
+            }
+
+            // Calculate points
+            const points = data.map((d, i) => ({
+                x: padding.left + (chartW * i) / (data.length - 1 || 1),
+                y: padding.top + chartH - (chartH * (d.count - minCount)) / range,
+                data: d,
+            }));
+
+            // Gradient fill
+            const gradient = ctx.createLinearGradient(0, padding.top, 0, h - padding.bottom);
+            gradient.addColorStop(0, colors.line + '40');
+            gradient.addColorStop(1, colors.line + '05');
+
+            // Draw area
+            ctx.beginPath();
+            ctx.moveTo(points[0].x, h - padding.bottom);
+            ctx.lineTo(points[0].x, points[0].y);
+            for (let i = 1; i < points.length; i++) {
+                const prev = points[i - 1];
+                const curr = points[i];
+                const cpx = (prev.x + curr.x) / 2;
+                ctx.bezierCurveTo(cpx, prev.y, cpx, curr.y, curr.x, curr.y);
+            }
+            ctx.lineTo(points[points.length - 1].x, h - padding.bottom);
+            ctx.closePath();
+            ctx.fillStyle = gradient;
+            ctx.fill();
+
+            // Draw line
+            ctx.beginPath();
+            ctx.moveTo(points[0].x, points[0].y);
+            for (let i = 1; i < points.length; i++) {
+                const prev = points[i - 1];
+                const curr = points[i];
+                const cpx = (prev.x + curr.x) / 2;
+                ctx.bezierCurveTo(cpx, prev.y, cpx, curr.y, curr.x, curr.y);
+            }
+            ctx.strokeStyle = colors.line;
+            ctx.lineWidth = 2.5;
+            ctx.stroke();
+
+            // Draw dots
+            points.forEach(p => {
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, 3, 0, Math.PI * 2);
+                ctx.fillStyle = colors.line;
+                ctx.fill();
+            });
+
+            // X-axis labels (show a subset to avoid overlap)
+            const maxLabels = Math.floor(chartW / 70);
+            const step = Math.max(1, Math.ceil(data.length / maxLabels));
+
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'top';
+            ctx.font = '10px Inter, sans-serif';
+            ctx.fillStyle = colors.text;
+
+            for (let i = 0; i < data.length; i += step) {
+                const p = points[i];
+                ctx.fillText(formatLabel(data[i].month), p.x, h - padding.bottom + 8);
+            }
+            // Always show last label
+            if ((data.length - 1) % step !== 0) {
+                const last = points[points.length - 1];
+                ctx.fillText(formatLabel(data[data.length - 1].month), last.x, h - padding.bottom + 8);
+            }
+
+            return points;
+        }
+
+        let chartPoints = draw();
+
+        // Tooltip handling
+        canvas.addEventListener('mousemove', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const mx = e.clientX - rect.left;
+            const my = e.clientY - rect.top;
+
+            let closest = null;
+            let closestDist = Infinity;
+            for (const p of chartPoints) {
+                const dist = Math.abs(mx - p.x);
+                if (dist < closestDist) {
+                    closestDist = dist;
+                    closest = p;
+                }
+            }
+
+            if (closest && closestDist < 30) {
+                tooltip.style.display = 'block';
+                tooltip.innerHTML = `<strong>${formatLabel(closest.data.month)}</strong><br>${closest.data.count.toLocaleString('fr-FR')} offres`;
+
+                // Position tooltip
+                let left = closest.x + 12;
+                let top = closest.y - 10;
+                const tooltipRect = tooltip.getBoundingClientRect();
+                const containerRect = container.getBoundingClientRect();
+
+                if (left + tooltipRect.width > containerRect.width - 10) {
+                    left = closest.x - tooltipRect.width - 12;
+                }
+                if (top < 0) top = 10;
+
+                tooltip.style.left = left + 'px';
+                tooltip.style.top = top + 'px';
+
+                // Redraw with highlighted point
+                chartPoints = draw();
+                const colors = getThemeColors();
+                const ctx2 = canvas.getContext('2d');
+                ctx2.beginPath();
+                ctx2.arc(closest.x, closest.y, 6, 0, Math.PI * 2);
+                ctx2.fillStyle = colors.line;
+                ctx2.fill();
+                ctx2.beginPath();
+                ctx2.arc(closest.x, closest.y, 3, 0, Math.PI * 2);
+                ctx2.fillStyle = colors.bg;
+                ctx2.fill();
+            } else {
+                tooltip.style.display = 'none';
+            }
+        });
+
+        canvas.addEventListener('mouseleave', () => {
+            tooltip.style.display = 'none';
+            chartPoints = draw();
+        });
+
+        // Redraw on resize
+        let resizeTimeout;
+        window.addEventListener('resize', () => {
+            clearTimeout(resizeTimeout);
+            resizeTimeout = setTimeout(() => { chartPoints = draw(); }, 100);
+        });
+
+        // Redraw on theme change
+        const observer = new MutationObserver(() => { chartPoints = draw(); });
+        observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
     }
 
     function renderBarChart(containerId, data, cssClass, filterType) {

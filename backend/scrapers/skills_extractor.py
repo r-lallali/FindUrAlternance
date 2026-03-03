@@ -279,6 +279,7 @@ NON_ALTERNANCE_KEYWORDS = [
     "cdd de droit commun",
     "pas en alternance",
     "hors alternance",
+    "livecampus",
 ]
 
 ALTERNANCE_POSITIVE = [

@@ -205,7 +205,8 @@ def _base_query(db: Session):
         Offer.is_alternance == True,  # noqa: E712
         Offer.company.notilike("%iscod%"),
         Offer.company.notilike("%icademie%"),
-        Offer.company.notilike("%i-cademie%")
+        Offer.company.notilike("%i-cademie%"),
+        Offer.company.notilike("%livecampus%")
     )
 
 

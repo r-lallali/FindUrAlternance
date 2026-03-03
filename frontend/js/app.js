@@ -371,8 +371,6 @@ document.addEventListener('DOMContentLoaded', () => {
             const stats = cachedTechStats;
             const generalStats = cachedGeneralStats;
 
-            document.getElementById('statsSubtitle').textContent =
-                `${formatNumber(stats.total_it_offers)} offres IT analysées sur ${formatNumber(stats.total_offers)} offres totales`;
 
             // Load timeline chart
             loadTimelineChart();
@@ -469,31 +467,22 @@ document.addEventListener('DOMContentLoaded', () => {
         const dpr = window.devicePixelRatio || 1;
         const MONTH_NAMES_FR = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Août', 'Sep', 'Oct', 'Nov', 'Déc'];
 
-        function formatLabel(periodStr, isTooltip = false) {
+        function formatLabel(periodStr) {
             if (!periodStr || typeof periodStr !== 'string' || !periodStr.includes('-')) return periodStr || '';
             try {
                 const parts = periodStr.split('-');
                 const year = parts[0];
                 const value = parseInt(parts[1], 10);
-                const shortYear = year.substring(2);
 
                 if (scale === 'week') {
-                    // Start of the week calculation
-                    const date = new Date(parseInt(year, 10), 0, 1 + (value - 1) * 7);
-                    const mm = String(date.getMonth() + 1).padStart(2, '0');
-                    const dd = String(date.getDate()).padStart(2, '0');
-
-                    if (isTooltip) {
-                        // More precise for tooltip: Day/Month/Year
-                        return `${dd}/${mm}/${shortYear}`;
-                    }
-                    // As requested: Month/Year
-                    return `${mm}/${shortYear}`;
+                    return `S${value} ${year}`;
                 }
 
                 // Monthly
-                const mm = String(value).padStart(2, '0');
-                return `${mm}/${shortYear}`;
+                if (value >= 1 && value <= 12) {
+                    return `${MONTH_NAMES_FR[value - 1]} ${year}`;
+                }
+                return periodStr;
             } catch { return periodStr; }
         }
 
@@ -613,7 +602,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             if (closest && closestDist < 30) {
                 tooltip.style.display = 'block';
-                tooltip.innerHTML = `<strong>${formatLabel(closest.data.period, true)}</strong><br>${closest.data.count} offres`;
+                tooltip.innerHTML = `<strong>${formatLabel(closest.data.period)}</strong><br>${closest.data.count} offres`;
                 const tRect = tooltip.getBoundingClientRect();
                 const cRect = container.getBoundingClientRect();
                 let tx = closest.x + 10;

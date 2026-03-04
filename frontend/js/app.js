@@ -481,7 +481,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // UI Update
             const btns = container.querySelectorAll('.btn-scale');
-            btns.forEach(b => b.classList.remove('active'));
+            btns.forEach(b => {
+                if (b.id !== 'timelinePrev' && b.id !== 'timelineNext') b.classList.remove('active');
+            });
             btn.classList.add('active');
 
             // State Update
@@ -523,10 +525,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Update nav buttons
                 const btnPrev = document.getElementById('timelinePrev');
                 const btnNext = document.getElementById('timelineNext');
-                if (btnPrev) btnPrev.disabled = startIndex <= 0;
-                if (btnNext) btnNext.disabled = currentTimelineOffset <= 0;
+                if (btnPrev && btnNext) {
+                    if (fullData.length <= maxPoints) {
+                        btnPrev.style.display = 'none';
+                        btnNext.style.display = 'none';
+                    } else {
+                        btnPrev.style.display = 'inline-block';
+                        btnNext.style.display = 'inline-block';
+                        btnPrev.disabled = startIndex <= 0;
+                        btnNext.disabled = currentTimelineOffset <= 0;
+                    }
+                }
 
-                renderTimelineChart(data, currentTimelineScale);
+                renderTimelineChart(data, currentTimelineScale, fullData);
             } else {
                 loading.style.display = 'block';
                 loading.textContent = 'Aucune donnée d\'évolution disponible.';
@@ -542,7 +553,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let timelineResizeListener = null;
     let timelineObserver = null;
 
-    function renderTimelineChart(data, scale = 'month') {
+    function renderTimelineChart(data, scale = 'month', fullData = []) {
         const container = document.getElementById('timelineChartContainer');
         const originalCanvas = document.getElementById('timelineCanvas');
         const tooltip = document.getElementById('timelineTooltip');
@@ -600,6 +611,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         let chartPoints = [];
+        let canvasW = 0, canvasH = 0;
+        let chartPadding = { top: 20, right: 30, bottom: 40, left: 50 };
 
         function draw() {
             try {
@@ -640,10 +653,15 @@ document.addEventListener('DOMContentLoaded', () => {
                     ctx.fillText(val.toLocaleString('fr-FR'), padding.left - 8, y);
                 }
 
+                canvasW = chartW;
+                canvasH = chartH;
+                chartPadding = padding;
+
                 chartPoints = data.map((d, i) => ({
                     x: padding.left + (chartW * i) / (data.length - 1 || 1),
                     y: padding.top + chartH - (chartH * ((d.count || 0))) / range,
                     data: d,
+                    index: i // Track local index
                 }));
 
                 // Area Gradient
@@ -713,9 +731,100 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (tx + tRect.width > cRect.width) tx = closest.x - tRect.width - 10;
                 tooltip.style.left = tx + 'px';
                 tooltip.style.top = ty + 'px';
-            } else { tooltip.style.display = 'none'; }
+
+                // Add click affordance if not daily scale
+                if (scale !== 'day') {
+                    canvas.style.cursor = 'pointer';
+                } else {
+                    canvas.style.cursor = 'default';
+                }
+            } else {
+                tooltip.style.display = 'none';
+                canvas.style.cursor = 'default';
+            }
         });
-        canvas.addEventListener('mouseleave', () => tooltip.style.display = 'none');
+
+        canvas.addEventListener('click', async (e) => {
+            if (scale === 'day') return; // Cannot zoom further than day
+
+            const rect = canvas.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            let closest = null;
+            let closestDist = Infinity;
+            for (const p of chartPoints) {
+                const d = Math.abs(mouseX - p.x);
+                if (d < closestDist) { closestDist = d; closest = p; }
+            }
+
+            if (closest && closestDist < 30) {
+                // Determine target scale
+                const nextScale = scale === 'month' ? 'week' : 'day';
+
+                // Fetch new data to align
+                const loading = document.getElementById('timelineLoading');
+                if (loading) {
+                    loading.style.display = 'block';
+                    loading.textContent = 'Zooming...';
+                }
+
+                if (!cachedTimelineData[nextScale]) {
+                    const res = await API.getTimelineStats(nextScale);
+                    cachedTimelineData[nextScale] = Array.isArray(res) ? res : [];
+                }
+
+                const nextFullData = cachedTimelineData[nextScale];
+
+                // Try to find the closest date in the new scale
+                let targetOffset = 0;
+                if (nextFullData && nextFullData.length > 0) {
+                    const clickPeriodStr = closest.data.period;
+                    let targetIndex = nextFullData.length - 1; // Default to most recent
+
+                    if (scale === 'month' && nextScale === 'week') {
+                        // Match year-month
+                        const yyyyMm = clickPeriodStr; // "2023-05"
+                        const targetItem = nextFullData.find(d => {
+                            // Approximation: check if week falls in month
+                            // We'll just try to align roughly or jump to end of month.
+                            // For simplicity, let's just find the first week we can map roughly.
+                            // But week is IYYY-IW. We might need a heuristic. 
+                            // Since JS dates are tricky, let's just default to 0 offset for now 
+                            // if exact matching is hard. Let's try exact matching year...
+                            return d.period.startsWith(yyyyMm.split('-')[0]); // at least same year
+                        });
+                        // A more precise approach: Just reset offset to 0. 
+                        // The user can scroll back. To keep it simple and bug-free:
+                        targetOffset = 0;
+                    } else if (scale === 'week' && nextScale === 'day') {
+                        targetOffset = 0;
+                    }
+
+                    // Note: Calculating exact date offset from Week to Day or Month to Week 
+                    // requires complex date math. We will simply switch the scale 
+                    // and let the user navigate for absolute precision. 
+                    // In a future update we can use a library like moment.js to calculate exact weeks.
+                }
+
+                // Update UI Controls
+                const container = document.querySelector('.timeline-controls');
+                if (container) {
+                    const btns = container.querySelectorAll('.btn-scale');
+                    btns.forEach(b => {
+                        if (b.id !== 'timelinePrev' && b.id !== 'timelineNext') b.classList.remove('active');
+                        if (b.dataset.scale === nextScale) b.classList.add('active');
+                    });
+                }
+
+                currentTimelineScale = nextScale;
+                currentTimelineOffset = targetOffset;
+                loadTimelineChart(true);
+            }
+        });
+
+        canvas.addEventListener('mouseleave', () => {
+            tooltip.style.display = 'none';
+            canvas.style.cursor = 'default';
+        });
 
         // Global listeners
         if (timelineResizeListener) window.removeEventListener('resize', timelineResizeListener);

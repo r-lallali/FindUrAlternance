@@ -632,20 +632,33 @@ document.addEventListener('DOMContentLoaded', () => {
         const container = document.getElementById('timelineChartContainer');
         const originalCanvas = document.getElementById('timelineCanvas');
         const tooltip = document.getElementById('timelineTooltip');
-        if (!container || !originalCanvas || !data || data.length === 0) return;
+        if (!container || !data || data.length === 0) return;
 
-        // Clean up old canvas to remove ALL event listeners
-        const canvas = originalCanvas.cloneNode(true);
-        originalCanvas.parentNode.replaceChild(canvas, originalCanvas);
+        // Transition management: instead of replacing instantly, we mark the old one as outgoing
+        if (direction && originalCanvas) {
+            originalCanvas.id = ''; // Avoid ID conflicts with incoming canvas
+            originalCanvas.style.pointerEvents = 'none';
+            originalCanvas.style.transformOrigin = originX + ' center';
+            // Clear old incoming classes before adding outgoing ones
+            originalCanvas.classList.remove('animate-zoom-in', 'animate-zoom-out');
+            originalCanvas.classList.add(direction === 'zoom-in' ? 'outgoing-zoom-in' : 'outgoing-zoom-out');
+
+            // Cleanup after animation completes (0.5s in CSS)
+            setTimeout(() => {
+                if (originalCanvas.parentNode) originalCanvas.remove();
+            }, 600);
+        } else if (originalCanvas) {
+            originalCanvas.remove();
+        }
+
+        // Create new canvas
+        const canvas = document.createElement('canvas');
+        canvas.id = 'timelineCanvas';
+        container.appendChild(canvas);
 
         if (direction === 'zoom-in' || direction === 'zoom-out') {
             canvas.style.transformOrigin = originX + ' center';
-        }
-
-        if (direction === 'zoom-in') {
-            canvas.classList.add('animate-zoom-in');
-        } else if (direction === 'zoom-out') {
-            canvas.classList.add('animate-zoom-out');
+            canvas.classList.add(direction === 'zoom-in' ? 'animate-zoom-in' : 'animate-zoom-out');
         }
 
         const ctx = canvas.getContext('2d');

@@ -510,18 +510,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 loading.textContent = 'Chargement des données...';
             }
 
-            if (!cachedTimelineData[currentTimelineScale]) {
-                const data = await API.getTimelineStats(currentTimelineScale);
-                cachedTimelineData[currentTimelineScale] = Array.isArray(data) ? data : [];
+            let apiScale = currentTimelineScale === 'year' ? 'month' : currentTimelineScale;
+            if (!cachedTimelineData[apiScale]) {
+                const data = await API.getTimelineStats(apiScale);
+                cachedTimelineData[apiScale] = Array.isArray(data) ? data : [];
             }
 
-            const fullData = cachedTimelineData[currentTimelineScale];
+            const fullData = cachedTimelineData[apiScale];
 
             if (fullData && fullData.length > 0) {
                 loading.style.display = 'none';
 
                 let maxPoints = 12;
-                if (currentTimelineScale === 'year') maxPoints = 5;
+                if (currentTimelineScale === 'year') maxPoints = 12;
                 if (currentTimelineScale === 'month') maxPoints = 3;
                 if (currentTimelineScale === 'week') maxPoints = 6;
                 if (currentTimelineScale === 'day') maxPoints = 3; // Focus on 3 days
@@ -587,7 +588,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
         function formatLabel(periodStr, isTooltip = false) {
             if (!periodStr || typeof periodStr !== 'string') return periodStr || '';
-            if (scale === 'year') return periodStr; // "2025", "2026"
             if (!periodStr.includes('-')) return periodStr;
             try {
                 const parts = periodStr.split('-');
@@ -791,30 +791,27 @@ document.addEventListener('DOMContentLoaded', () => {
                     loading.textContent = 'Zooming...';
                 }
 
-                if (!cachedTimelineData[nextScale]) {
-                    const res = await API.getTimelineStats(nextScale);
-                    cachedTimelineData[nextScale] = Array.isArray(res) ? res : [];
+                let nextApiScale = nextScale === 'year' ? 'month' : nextScale;
+                if (!cachedTimelineData[nextApiScale]) {
+                    const res = await API.getTimelineStats(nextApiScale);
+                    cachedTimelineData[nextApiScale] = Array.isArray(res) ? res : [];
                 }
 
-                const nextFullData = cachedTimelineData[nextScale];
+                const nextFullData = cachedTimelineData[nextApiScale];
 
                 // Try to find the closest date in the new scale
                 let targetOffset = 0;
                 if (nextFullData && nextFullData.length > 0) {
-                    // Helper to approximate timestamp from period string
                     const getPeriodTime = (period, pScale) => {
-                        if (!period) return Date.now();
+                        if (!period || !period.includes('-')) return Date.now();
                         const parts = period.split('-');
                         const year = parseInt(parts[0], 10);
-                        if (pScale === 'year') {
-                            return new Date(year, 0, 1).getTime();
-                        }
                         const val = parseInt(parts[1] || 1, 10);
                         if (pScale === 'day') {
                             return new Date(year, val - 1, parts[2] ? parseInt(parts[2], 10) : 1).getTime();
                         } else if (pScale === 'week') {
                             return new Date(year, 0, 1 + (val - 1) * 7).getTime();
-                        } else { // month
+                        } else { // month or year, both use YYYY-MM
                             return new Date(year, val - 1, 1).getTime();
                         }
                     };
@@ -832,7 +829,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         }
                     }
 
-                    const maxP = nextScale === 'day' ? 3 : (nextScale === 'week' ? 6 : (nextScale === 'month' ? 3 : 5));
+                    const maxP = nextScale === 'day' ? 3 : (nextScale === 'week' ? 6 : (nextScale === 'month' ? 3 : 12));
                     let desiredEndIndex = bestIndex + Math.ceil(maxP / 2);
                     if (desiredEndIndex >= nextFullData.length) desiredEndIndex = nextFullData.length;
 

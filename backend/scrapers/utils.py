@@ -135,15 +135,25 @@ def is_school_offer(company: str, description: Optional[str] = None) -> bool:
     return False
 
 
-def clean_text(text: Optional[str]) -> Optional[str]:
+def clean_text(text: Optional[str], preserve_newlines: bool = False) -> Optional[str]:
     """Clean and normalize text content."""
     if not text:
         return None
-    # Remove excessive whitespace
-    text = re.sub(r'\s+', ' ', text).strip()
-    # Remove HTML tags if any remain
-    text = re.sub(r'<[^>]+>', '', text)
-    return text if text else None
+    
+    if preserve_newlines:
+        # Replace common block tags and breaks with newlines
+        text = re.sub(r'<(br|p|div)[^>]*>', '\n', text, flags=re.IGNORECASE)
+        # Remove other HTML tags
+        text = re.sub(r'<[^>]+>', '', text)
+        # Normalize whitespace but keep newlines
+        lines = [line.strip() for line in text.split('\n')]
+        text = '\n'.join(filter(None, lines))
+    else:
+        # Original behavior: collapse everything
+        text = re.sub(r'\s+', ' ', text).strip()
+        text = re.sub(r'<[^>]+>', '', text)
+        
+    return text if text and text.strip() else None
 
 
 def extract_department(location: Optional[str]) -> Optional[str]:

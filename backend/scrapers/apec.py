@@ -26,15 +26,16 @@ class ApecScraper(BaseScraper):
             for term in search_terms:
                 self.logger.info(f"Apec: Searching for '{term}'")
                 
-                # Fetch up to 5 pages (50 results per page = 250 offers per term)
-                for start_index in range(0, 250, 50):
+                # Fetch up to 10 pages (100 results per page = 1000+ offers per term)
+                # Note: Apec might cap results, but we try.
+                for start_index in range(0, 1000, 100):
                     payload = {
                         "lieux": [],
                         "fonctions": [],
                         "statutPoste": [],
                         "typesContrat": [],
                         "typesConvention": ["143684", "143685", "143686", "143687", "143706"],
-                        "pagination": {"range": 50, "startIndex": start_index},
+                        "pagination": {"range": 100, "startIndex": start_index},
                         "motsCles": term,
                         "typeClient": "CADRE",
                         "sorts": [{"type": "SCORE", "direction": "DESCENDING"}],
@@ -140,7 +141,7 @@ class ApecScraper(BaseScraper):
                 "department": dept,
                 "contract_type": "Alternance",
                 "salary": full_details.get("salaireTexte") or raw_data.get("salaireTexte"),
-                "description": clean_text(description),
+                "description": clean_text(description, preserve_newlines=True),
                 "profile": None,
                 "category": None,
                 "publication_date": pub_date or datetime.now(),

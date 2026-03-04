@@ -633,7 +633,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const tooltip = document.getElementById('timelineTooltip');
         if (!container || !originalCanvas || !data || data.length === 0) return;
 
-        // Create a new canvas that will represent the new view
+        // Create the NEW canvas
         const canvas = originalCanvas.cloneNode(false);
         const ctx = canvas.getContext('2d');
         const dpr = window.devicePixelRatio || 1;
@@ -668,7 +668,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     return `S${value} ${year}`;
                 }
 
-                // Monthly
                 return `${MONTH_NAMES_FR[value - 1]} ${year}`;
             } catch { return periodStr; }
         }
@@ -685,16 +684,12 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         let chartPoints = [];
-        let canvasW = 0, canvasH = 0;
-        let chartPadding = { top: 20, right: 30, bottom: 40, left: 50 };
 
         function draw() {
             try {
                 const rect = container.getBoundingClientRect();
                 canvas.width = rect.width * dpr;
                 canvas.height = 280 * dpr;
-                canvas.style.width = rect.width + 'px';
-                canvas.style.height = '280px';
                 ctx.scale(dpr, dpr);
 
                 const w = canvas.width / dpr;
@@ -706,142 +701,106 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 ctx.clearRect(0, 0, w, h);
 
-                const counts = data.map(d => d.count || 0);
-                const maxCount = Math.max(...counts, 1);
-                const range = maxCount;
+                const maxCount = Math.max(...data.map(d => d.count || 0), 1);
 
-                // Y Grid & labels
+                // Y Grid
                 ctx.textAlign = 'right';
                 ctx.textBaseline = 'middle';
                 ctx.font = '11px Inter, sans-serif';
                 for (let i = 0; i <= 5; i++) {
-                    const val = Math.round((range * i) / 5);
+                    const val = Math.round((maxCount * i) / 5);
                     const y = padding.top + chartH - (chartH * i) / 5;
                     ctx.strokeStyle = colors.grid;
                     ctx.lineWidth = 0.5;
-                    ctx.beginPath();
-                    ctx.moveTo(padding.left, y);
-                    ctx.lineTo(w - padding.right, y);
-                    ctx.stroke();
+                    ctx.beginPath(); ctx.moveTo(padding.left, y); ctx.lineTo(w - padding.right, y); ctx.stroke();
                     ctx.fillStyle = colors.text;
                     ctx.fillText(val.toLocaleString('fr-FR'), padding.left - 8, y);
                 }
 
-                canvasW = chartW;
-                canvasH = chartH;
-                chartPadding = padding;
-
                 chartPoints = data.map((d, i) => ({
                     x: padding.left + (chartW * i) / (data.length - 1 || 1),
-                    y: padding.top + chartH - (chartH * ((d.count || 0))) / range,
-                    data: d,
-                    index: i
+                    y: padding.top + chartH - (chartH * ((d.count || 0))) / maxCount,
+                    data: d
                 }));
 
-                // Area background
+                // Area
                 ctx.beginPath();
                 ctx.moveTo(chartPoints[0].x, padding.top + chartH);
                 chartPoints.forEach(p => ctx.lineTo(p.x, p.y));
                 ctx.lineTo(chartPoints[chartPoints.length - 1].x, padding.top + chartH);
-                ctx.closePath();
                 const grad = ctx.createLinearGradient(0, padding.top, 0, padding.top + chartH);
-                grad.addColorStop(0, colors.accentLine);
-                grad.addColorStop(1, 'transparent');
-                ctx.fillStyle = grad;
-                ctx.fill();
+                grad.addColorStop(0, colors.accentLine); grad.addColorStop(1, 'transparent');
+                ctx.fillStyle = grad; ctx.fill();
 
-                // Chart line
-                ctx.beginPath();
-                ctx.setLineDash([]);
-                ctx.lineWidth = 3;
-                ctx.lineCap = 'round';
-                ctx.lineJoin = 'round';
-                ctx.strokeStyle = colors.line;
-                chartPoints.forEach((p, i) => {
-                    if (i === 0) ctx.moveTo(p.x, p.y);
-                    else ctx.lineTo(p.x, p.y);
-                });
+                // Line
+                ctx.beginPath(); ctx.lineWidth = 3; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.strokeStyle = colors.line;
+                chartPoints.forEach((p, i) => i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y));
                 ctx.stroke();
 
-                // Points
+                // Dots
                 chartPoints.forEach(p => {
-                    ctx.beginPath();
-                    ctx.arc(p.x, p.y, 5, 0, Math.PI * 2);
-                    ctx.fillStyle = colors.bg;
-                    ctx.fill();
-                    ctx.strokeStyle = colors.line;
-                    ctx.lineWidth = 2;
-                    ctx.stroke();
+                    ctx.beginPath(); ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
+                    ctx.fillStyle = colors.bg; ctx.fill();
+                    ctx.strokeStyle = colors.line; ctx.lineWidth = 2; ctx.stroke();
                 });
 
-                // Dates labels
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'top';
-                ctx.fillStyle = colors.text;
-                for (let i = 0; i < data.length; i++) {
-                    ctx.fillText(formatLabel(data[i].period), chartPoints[i].x, h - padding.bottom + 10);
-                }
+                // X Labels
+                ctx.textAlign = 'center'; ctx.fillStyle = colors.text;
+                chartPoints.forEach(p => ctx.fillText(formatLabel(p.data.period), p.x, h - padding.bottom + 10));
             } catch (err) { console.error('Draw err:', err); }
         }
 
-        // Do initial draw on the new canvas
         draw();
 
-        // Handle the smooth transition
+        // New Logic: Smooth CSS Transition
         if (direction) {
             const oldCanvas = originalCanvas;
-            oldCanvas.id = ''; // Remove ID to prevent search during overlapping render calls
+            oldCanvas.id = '';
             canvas.id = 'timelineCanvas';
 
+            // Set origins
             oldCanvas.style.transformOrigin = originX + ' center';
             canvas.style.transformOrigin = originX + ' center';
 
-            if (direction === 'zoom-in') {
-                oldCanvas.classList.add('outgoing-zoom-in');
-                canvas.classList.add('animate-zoom-in');
-            } else {
-                oldCanvas.classList.add('outgoing-zoom-out');
-                canvas.classList.add('animate-zoom-out');
-            }
-
+            // Initial state for new canvas
+            canvas.classList.add(direction === 'zoom-in' ? 'scale-up' : 'scale-down');
             container.appendChild(canvas);
 
+            // Trigger the transition
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    oldCanvas.classList.remove('active');
+                    oldCanvas.classList.add(direction === 'zoom-in' ? 'exit-zoom-in' : 'exit-zoom-out');
+                    canvas.classList.remove('scale-up', 'scale-down');
+                    canvas.classList.add('active');
+                });
+            });
+
+            // Cleanup
             setTimeout(() => {
                 if (oldCanvas.parentNode) oldCanvas.parentNode.removeChild(oldCanvas);
-                canvas.classList.remove('animate-zoom-in', 'animate-zoom-out');
-            }, 550);
+            }, 650);
         } else {
-            container.replaceChild(canvas, originalCanvas);
             canvas.id = 'timelineCanvas';
+            canvas.classList.add('active');
+            container.replaceChild(canvas, originalCanvas);
         }
 
         // Mouse Interactivity
         canvas.addEventListener('mousemove', (e) => {
             const rect = canvas.getBoundingClientRect();
             const mouseX = e.clientX - rect.left;
-            let closest = null;
-            let closestDist = Infinity;
-            for (const p of chartPoints) {
-                const d = Math.abs(mouseX - p.x);
-                if (d < closestDist) { closestDist = d; closest = p; }
-            }
+            let closest = null, closestDist = Infinity;
+            chartPoints.forEach(p => { const d = Math.abs(mouseX - p.x); if (d < closestDist) { closestDist = d; closest = p; } });
+
             if (closest && closestDist < 30) {
                 tooltip.style.display = 'block';
                 tooltip.innerHTML = `<strong>${formatLabel(closest.data.period, true)}</strong><br>${closest.data.count} offres`;
-                const tRect = tooltip.getBoundingClientRect();
-                const cRect = container.getBoundingClientRect();
                 let tx = closest.x + 10;
-                let ty = closest.y - 10;
-                if (tx + tRect.width > cRect.width) tx = closest.x - tRect.width - 10;
+                if (tx + 150 > container.offsetWidth) tx = closest.x - 160;
                 tooltip.style.left = tx + 'px';
-                tooltip.style.top = ty + 'px';
-
-                // Add click affordance if not daily scale
-                if (scale !== 'day') {
-                    canvas.style.cursor = 'pointer';
-                } else {
-                    canvas.style.cursor = 'default';
-                }
+                tooltip.style.top = (closest.y - 10) + 'px';
+                canvas.style.cursor = scale !== 'day' ? 'pointer' : 'default';
             } else {
                 tooltip.style.display = 'none';
                 canvas.style.cursor = 'default';
@@ -849,31 +808,15 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         canvas.addEventListener('click', async (e) => {
-            if (scale === 'day') return; // Cannot zoom further than day
-
+            if (scale === 'day') return;
             const rect = canvas.getBoundingClientRect();
             const mouseX = e.clientX - rect.left;
-            let closest = null;
-            let closestDist = Infinity;
-            for (const p of chartPoints) {
-                const d = Math.abs(mouseX - p.x);
-                if (d < closestDist) { closestDist = d; closest = p; }
-            }
+            let closest = null, closestDist = Infinity;
+            chartPoints.forEach(p => { const d = Math.abs(mouseX - p.x); if (d < closestDist) { closestDist = d; closest = p; } });
 
             if (closest && closestDist < 30) {
-                // Determine target scale
                 const nextScale = scale === 'year' ? 'month' : (scale === 'month' ? 'week' : 'day');
-
-                // Calculate click origin for zoom animation
-                const clickXPercent = ((closest.x / canvas.offsetWidth) * 100).toFixed(2);
-                const zoomOrigin = `${clickXPercent}%`;
-
-                // Fetch new data to align
-                const loading = document.getElementById('timelineLoading');
-                if (loading) {
-                    loading.style.display = 'block';
-                    loading.textContent = 'Zooming...';
-                }
+                const zoomOrigin = `${((closest.x / canvas.offsetWidth) * 100).toFixed(2)}%`;
 
                 let nextApiScale = nextScale === 'year' ? 'month' : nextScale;
                 if (!cachedTimelineData[nextApiScale]) {
@@ -881,54 +824,30 @@ document.addEventListener('DOMContentLoaded', () => {
                     cachedTimelineData[nextApiScale] = Array.isArray(res) ? res : [];
                 }
 
-                const nextFullData = cachedTimelineData[nextApiScale];
-
-                // Try to find the closest date in the new scale
                 let targetOffset = 0;
+                const nextFullData = cachedTimelineData[nextApiScale];
                 if (nextFullData && nextFullData.length > 0) {
                     const clickTime = getTimelinePeriodTime(closest.data.period, scale);
-                    let minDiff = Infinity;
-                    let bestIndex = nextFullData.length - 1;
-
-                    for (let i = 0; i < nextFullData.length; i++) {
-                        const t = getTimelinePeriodTime(nextFullData[i].period, nextScale);
-                        const diff = Math.abs(t - clickTime);
-                        if (diff < minDiff) {
-                            minDiff = diff;
-                            bestIndex = i;
-                        }
-                    }
-
+                    let minD = Infinity, bestI = nextFullData.length - 1;
+                    nextFullData.forEach((d, i) => { const diff = Math.abs(getTimelinePeriodTime(d.period, nextScale) - clickTime); if (diff < minD) { minD = diff; bestI = i; } });
                     const maxP = nextScale === 'day' ? 3 : (nextScale === 'week' ? 4 : (nextScale === 'month' ? 3 : 12));
-                    let desiredEndIndex = bestIndex + Math.ceil(maxP / 2);
-                    if (desiredEndIndex >= nextFullData.length) desiredEndIndex = nextFullData.length;
-
-                    targetOffset = nextFullData.length - desiredEndIndex;
-                    if (targetOffset < 0) targetOffset = 0;
+                    targetOffset = Math.max(0, nextFullData.length - (bestI + Math.ceil(maxP / 2)));
                 }
 
-                // Update UI Controls
                 const ctrlContainer = document.querySelector('.timeline-controls');
                 if (ctrlContainer) {
-                    const btns = ctrlContainer.querySelectorAll('.btn-scale');
-                    btns.forEach(b => {
-                        if (b.id !== 'timelinePrev' && b.id !== 'timelineNext') b.classList.remove('active');
+                    ctrlContainer.querySelectorAll('.btn-scale').forEach(b => {
+                        b.classList.remove('active');
                         if (b.dataset.scale === nextScale) b.classList.add('active');
                     });
                 }
-
                 currentTimelineScale = nextScale;
                 currentTimelineOffset = targetOffset;
                 loadTimelineChart(true, 'zoom-in', zoomOrigin);
             }
         });
 
-        canvas.addEventListener('mouseleave', () => {
-            tooltip.style.display = 'none';
-            canvas.style.cursor = 'default';
-        });
-
-        // Global listeners
+        canvas.addEventListener('mouseleave', () => { tooltip.style.display = 'none'; canvas.style.cursor = 'default'; });
         if (timelineResizeListener) window.removeEventListener('resize', timelineResizeListener);
         timelineResizeListener = draw;
         window.addEventListener('resize', timelineResizeListener);

@@ -777,32 +777,40 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Try to find the closest date in the new scale
                 let targetOffset = 0;
                 if (nextFullData && nextFullData.length > 0) {
-                    const clickPeriodStr = closest.data.period;
-                    let targetIndex = nextFullData.length - 1; // Default to most recent
+                    // Helper to approximate timestamp from period string
+                    const getPeriodTime = (period, pScale) => {
+                        if (!period || !period.includes('-')) return Date.now();
+                        const parts = period.split('-');
+                        const year = parseInt(parts[0], 10);
+                        const val = parseInt(parts[1], 10);
+                        if (pScale === 'day') {
+                            return new Date(year, val - 1, parts[2] ? parseInt(parts[2], 10) : 1).getTime();
+                        } else if (pScale === 'week') {
+                            return new Date(year, 0, 1 + (val - 1) * 7).getTime();
+                        } else { // month
+                            return new Date(year, val - 1, 1).getTime();
+                        }
+                    };
 
-                    if (scale === 'month' && nextScale === 'week') {
-                        // Match year-month
-                        const yyyyMm = clickPeriodStr; // "2023-05"
-                        const targetItem = nextFullData.find(d => {
-                            // Approximation: check if week falls in month
-                            // We'll just try to align roughly or jump to end of month.
-                            // For simplicity, let's just find the first week we can map roughly.
-                            // But week is IYYY-IW. We might need a heuristic. 
-                            // Since JS dates are tricky, let's just default to 0 offset for now 
-                            // if exact matching is hard. Let's try exact matching year...
-                            return d.period.startsWith(yyyyMm.split('-')[0]); // at least same year
-                        });
-                        // A more precise approach: Just reset offset to 0. 
-                        // The user can scroll back. To keep it simple and bug-free:
-                        targetOffset = 0;
-                    } else if (scale === 'week' && nextScale === 'day') {
-                        targetOffset = 0;
+                    const clickTime = getPeriodTime(closest.data.period, scale);
+                    let minDiff = Infinity;
+                    let bestIndex = nextFullData.length - 1;
+
+                    for (let i = 0; i < nextFullData.length; i++) {
+                        const t = getPeriodTime(nextFullData[i].period, nextScale);
+                        const diff = Math.abs(t - clickTime);
+                        if (diff < minDiff) {
+                            minDiff = diff;
+                            bestIndex = i;
+                        }
                     }
 
-                    // Note: Calculating exact date offset from Week to Day or Month to Week 
-                    // requires complex date math. We will simply switch the scale 
-                    // and let the user navigate for absolute precision. 
-                    // In a future update we can use a library like moment.js to calculate exact weeks.
+                    const maxP = nextScale === 'day' ? 3 : 24;
+                    let desiredEndIndex = bestIndex + Math.ceil(maxP / 2);
+                    if (desiredEndIndex >= nextFullData.length) desiredEndIndex = nextFullData.length;
+
+                    targetOffset = nextFullData.length - desiredEndIndex;
+                    if (targetOffset < 0) targetOffset = 0;
                 }
 
                 // Update UI Controls

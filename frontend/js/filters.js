@@ -77,6 +77,7 @@ const Filters = (() => {
                 clearTimeout(debounceTimer);
                 debounceTimer = setTimeout(() => {
                     state.location = e.target.value.trim();
+                    state.department = ''; // Clear department when typing a city manually
                     state.page = 1;
                     triggerChange();
                 }, 400);

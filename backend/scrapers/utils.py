@@ -1,7 +1,7 @@
 """Utility functions for scraping: school detection, text cleaning, etc."""
 
 import re
-from typing import Optional
+from typing import Optional, Dict
 
 # Keywords that indicate an offer is from a school rather than a company
 SCHOOL_KEYWORDS = [

@@ -633,20 +633,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const tooltip = document.getElementById('timelineTooltip');
         if (!container || !originalCanvas || !data || data.length === 0) return;
 
-        // Clean up old canvas to remove ALL event listeners
-        const canvas = originalCanvas.cloneNode(true);
-        originalCanvas.parentNode.replaceChild(canvas, originalCanvas);
-
-        if (direction === 'zoom-in' || direction === 'zoom-out') {
-            canvas.style.transformOrigin = originX + ' center';
-        }
-
-        if (direction === 'zoom-in') {
-            canvas.classList.add('animate-zoom-in');
-        } else if (direction === 'zoom-out') {
-            canvas.classList.add('animate-zoom-out');
-        }
-
+        // Create a new canvas that will represent the new view
+        const canvas = originalCanvas.cloneNode(false);
         const ctx = canvas.getContext('2d');
         const dpr = window.devicePixelRatio || 1;
         const MONTH_NAMES_FR = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Août', 'Sep', 'Oct', 'Nov', 'Déc'];
@@ -689,6 +677,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const style = getComputedStyle(document.documentElement);
             return {
                 line: style.getPropertyValue('--accent-primary').trim() || '#3b82f6',
+                accentLine: 'rgba(59, 130, 246, 0.4)',
                 text: style.getPropertyValue('--text-muted').trim() || '#666',
                 grid: style.getPropertyValue('--border').trim() || '#1f1f1f',
                 bg: style.getPropertyValue('--bg-card').trim() || '#111',
@@ -746,55 +735,85 @@ document.addEventListener('DOMContentLoaded', () => {
                     x: padding.left + (chartW * i) / (data.length - 1 || 1),
                     y: padding.top + chartH - (chartH * ((d.count || 0))) / range,
                     data: d,
-                    index: i // Track local index
+                    index: i
                 }));
 
-                // Area Gradient
-                const gradient = ctx.createLinearGradient(0, padding.top, 0, h - padding.bottom);
-                gradient.addColorStop(0, colors.line + '30');
-                gradient.addColorStop(1, colors.line + '00');
-
+                // Area background
                 ctx.beginPath();
-                ctx.moveTo(chartPoints[0].x, h - padding.bottom);
-                for (let i = 0; i < chartPoints.length; i++) {
-                    const p = chartPoints[i];
-                    if (i === 0) ctx.lineTo(p.x, p.y);
-                    else {
-                        const prev = chartPoints[i - 1];
-                        const cpx = (prev.x + p.x) / 2;
-                        ctx.bezierCurveTo(cpx, prev.y, cpx, p.y, p.x, p.y);
-                    }
-                }
-                ctx.lineTo(chartPoints[chartPoints.length - 1].x, h - padding.bottom);
+                ctx.moveTo(chartPoints[0].x, padding.top + chartH);
+                chartPoints.forEach(p => ctx.lineTo(p.x, p.y));
+                ctx.lineTo(chartPoints[chartPoints.length - 1].x, padding.top + chartH);
                 ctx.closePath();
-                ctx.fillStyle = gradient;
+                const grad = ctx.createLinearGradient(0, padding.top, 0, padding.top + chartH);
+                grad.addColorStop(0, colors.accentLine);
+                grad.addColorStop(1, 'transparent');
+                ctx.fillStyle = grad;
                 ctx.fill();
 
-                // Path
+                // Chart line
                 ctx.beginPath();
-                ctx.moveTo(chartPoints[0].x, chartPoints[0].y);
-                for (let i = 1; i < chartPoints.length; i++) {
-                    const prev = chartPoints[i - 1];
-                    const p = chartPoints[i];
-                    const cpx = (prev.x + p.x) / 2;
-                    ctx.bezierCurveTo(cpx, prev.y, cpx, p.y, p.x, p.y);
-                }
+                ctx.setLineDash([]);
+                ctx.lineWidth = 3;
+                ctx.lineCap = 'round';
+                ctx.lineJoin = 'round';
                 ctx.strokeStyle = colors.line;
-                ctx.lineWidth = 2.5;
+                chartPoints.forEach((p, i) => {
+                    if (i === 0) ctx.moveTo(p.x, p.y);
+                    else ctx.lineTo(p.x, p.y);
+                });
                 ctx.stroke();
 
-                // X labels
-                const step = Math.max(1, Math.ceil(data.length / Math.floor(chartW / 80)));
+                // Points
+                chartPoints.forEach(p => {
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, 5, 0, Math.PI * 2);
+                    ctx.fillStyle = colors.bg;
+                    ctx.fill();
+                    ctx.strokeStyle = colors.line;
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+                });
+
+                // Dates labels
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'top';
                 ctx.fillStyle = colors.text;
-                for (let i = 0; i < data.length; i += step) {
+                for (let i = 0; i < data.length; i++) {
                     ctx.fillText(formatLabel(data[i].period), chartPoints[i].x, h - padding.bottom + 10);
                 }
-            } catch (e) { console.error("Chart draw error:", e); }
+            } catch (err) { console.error('Draw err:', err); }
         }
 
+        // Do initial draw on the new canvas
         draw();
+
+        // Handle the smooth transition
+        if (direction) {
+            const oldCanvas = originalCanvas;
+            oldCanvas.id = ''; // Remove ID to prevent search during overlapping render calls
+            canvas.id = 'timelineCanvas';
+
+            oldCanvas.style.transformOrigin = originX + ' center';
+            canvas.style.transformOrigin = originX + ' center';
+
+            if (direction === 'zoom-in') {
+                oldCanvas.classList.add('outgoing-zoom-in');
+                canvas.classList.add('animate-zoom-in');
+            } else {
+                oldCanvas.classList.add('outgoing-zoom-out');
+                canvas.classList.add('animate-zoom-out');
+            }
+
+            container.appendChild(canvas);
+
+            setTimeout(() => {
+                if (oldCanvas.parentNode) oldCanvas.parentNode.removeChild(oldCanvas);
+                canvas.classList.remove('animate-zoom-in', 'animate-zoom-out');
+            }, 550);
+        } else {
+            container.replaceChild(canvas, originalCanvas);
+            canvas.id = 'timelineCanvas';
+        }
 
         // Mouse Interactivity
         canvas.addEventListener('mousemove', (e) => {
@@ -846,7 +865,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const nextScale = scale === 'year' ? 'month' : (scale === 'month' ? 'week' : 'day');
 
                 // Calculate click origin for zoom animation
-                const clickXPercent = ((closest.x / canvasW) * 100).toFixed(2);
+                const clickXPercent = ((closest.x / canvas.offsetWidth) * 100).toFixed(2);
                 const zoomOrigin = `${clickXPercent}%`;
 
                 // Fetch new data to align
@@ -889,9 +908,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
 
                 // Update UI Controls
-                const container = document.querySelector('.timeline-controls');
-                if (container) {
-                    const btns = container.querySelectorAll('.btn-scale');
+                const ctrlContainer = document.querySelector('.timeline-controls');
+                if (ctrlContainer) {
+                    const btns = ctrlContainer.querySelectorAll('.btn-scale');
                     btns.forEach(b => {
                         if (b.id !== 'timelinePrev' && b.id !== 'timelineNext') b.classList.remove('active');
                         if (b.dataset.scale === nextScale) b.classList.add('active');

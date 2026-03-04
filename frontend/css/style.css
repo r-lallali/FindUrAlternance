@@ -1547,19 +1547,34 @@ a:hover {
     display: block;
     width: 100%;
     transform-origin: center center;
+    position: absolute;
+    top: 0;
+    left: 0;
 }
 
 .timeline-chart-container canvas.animate-zoom-in {
-    animation: chartZoomIn 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+    z-index: 2;
+    animation: chartZoomInNew 0.5s cubic-bezier(0.4, 0, 0.2, 1) forwards;
 }
 
 .timeline-chart-container canvas.animate-zoom-out {
-    animation: chartZoomOut 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+    z-index: 2;
+    animation: chartZoomOutNew 0.5s cubic-bezier(0.4, 0, 0.2, 1) forwards;
 }
 
-@keyframes chartZoomIn {
+.timeline-chart-container canvas.outgoing-zoom-in {
+    z-index: 1;
+    animation: chartZoomInOutgoing 0.5s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+.timeline-chart-container canvas.outgoing-zoom-out {
+    z-index: 1;
+    animation: chartZoomOutOutgoing 0.5s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+@keyframes chartZoomInNew {
     0% {
-        transform: scale(0.9);
+        transform: scale(0.6);
         opacity: 0;
     }
 
@@ -1569,15 +1584,39 @@ a:hover {
     }
 }
 
-@keyframes chartZoomOut {
+@keyframes chartZoomInOutgoing {
     0% {
-        transform: scale(1.1);
+        transform: scale(1);
+        opacity: 1;
+    }
+
+    100% {
+        transform: scale(2);
+        opacity: 0;
+    }
+}
+
+@keyframes chartZoomOutNew {
+    0% {
+        transform: scale(1.8);
         opacity: 0;
     }
 
     100% {
         transform: scale(1);
         opacity: 1;
+    }
+}
+
+@keyframes chartZoomOutOutgoing {
+    0% {
+        transform: scale(1);
+        opacity: 1;
+    }
+
+    100% {
+        transform: scale(0.5);
+        opacity: 0;
     }
 }
 

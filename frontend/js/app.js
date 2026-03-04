@@ -506,7 +506,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (cachedTimelineData[oldApiScale]) {
                 const viewData = cachedTimelineData[oldApiScale];
-                let mPts = { 'year': 12, 'month': 3, 'week': 6, 'day': 3 }[oldScale] || 12;
+                let mPts = { 'year': 12, 'month': 3, 'week': 4, 'day': 3 }[oldScale] || 12;
                 const endIdx = viewData.length - currentTimelineOffset;
                 const startIdx = Math.max(0, endIdx - mPts);
                 const curSlice = viewData.slice(startIdx, Math.max(0, endIdx));
@@ -547,7 +547,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 }
 
-                const maxP = { 'year': 12, 'month': 3, 'week': 6, 'day': 3 }[scale] || 12;
+                const maxP = { 'year': 12, 'month': 3, 'week': 4, 'day': 3 }[scale] || 12;
                 let desiredEndIndex = bestIndex + Math.ceil(maxP / 2);
                 if (desiredEndIndex >= nextFullData.length) desiredEndIndex = nextFullData.length;
 
@@ -589,7 +589,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 let maxPoints = 12;
                 if (currentTimelineScale === 'year') maxPoints = 12;
                 if (currentTimelineScale === 'month') maxPoints = 3;
-                if (currentTimelineScale === 'week') maxPoints = 6;
+                if (currentTimelineScale === 'week') maxPoints = 4;
                 if (currentTimelineScale === 'day') maxPoints = 3; // Focus on 3 days
 
                 const endIndex = fullData.length - currentTimelineOffset;
@@ -880,7 +880,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         }
                     }
 
-                    const maxP = nextScale === 'day' ? 3 : (nextScale === 'week' ? 6 : (nextScale === 'month' ? 3 : 12));
+                    const maxP = nextScale === 'day' ? 3 : (nextScale === 'week' ? 4 : (nextScale === 'month' ? 3 : 12));
                     let desiredEndIndex = bestIndex + Math.ceil(maxP / 2);
                     if (desiredEndIndex >= nextFullData.length) desiredEndIndex = nextFullData.length;
 

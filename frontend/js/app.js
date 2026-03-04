@@ -157,6 +157,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (tabsContainer) tabsContainer.dataset.activeTab = tab;
 
                 updateTabIndicator();
+                window.scrollTo({ top: 0, behavior: 'instant' });
             });
         });
     }
@@ -629,9 +630,23 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function renderTimelineChart(data, scale = 'month', fullData = [], direction = null, originX = '50%') {
         const container = document.getElementById('timelineChartContainer');
-        const canvas = document.getElementById('timelineCanvas');
+        const originalCanvas = document.getElementById('timelineCanvas');
         const tooltip = document.getElementById('timelineTooltip');
-        if (!container || !canvas || !data || data.length === 0) return;
+        if (!container || !originalCanvas || !data || data.length === 0) return;
+
+        // Clean up old canvas to remove ALL event listeners
+        const canvas = originalCanvas.cloneNode(true);
+        originalCanvas.parentNode.replaceChild(canvas, originalCanvas);
+
+        if (direction === 'zoom-in' || direction === 'zoom-out') {
+            canvas.style.transformOrigin = originX + ' center';
+        }
+
+        if (direction === 'zoom-in') {
+            canvas.classList.add('animate-zoom-in');
+        } else if (direction === 'zoom-out') {
+            canvas.classList.add('animate-zoom-out');
+        }
 
         const ctx = canvas.getContext('2d');
         const dpr = window.devicePixelRatio || 1;
@@ -650,7 +665,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     const date = new Date(year, parseInt(parts[1], 10) - 1, parts[2] ? parseInt(parts[2], 10) : 1);
                     const dd = String(date.getDate()).padStart(2, '0');
                     const mm = String(date.getMonth() + 1).padStart(2, '0');
-                    return isTooltip ? `${dd}/${mm}/${year}` : `${dd}/${mm}`;
+                    if (isTooltip) {
+                        return `${dd}/${mm}/${year}`;
+                    }
+                    return `${dd}/${mm}`;
                 }
 
                 if (scale === 'week') {
@@ -663,6 +681,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     return `S${value} ${year}`;
                 }
 
+                // Monthly
                 return `${MONTH_NAMES_FR[value - 1]} ${year}`;
             } catch { return periodStr; }
         }
@@ -671,7 +690,6 @@ document.addEventListener('DOMContentLoaded', () => {
             const style = getComputedStyle(document.documentElement);
             return {
                 line: style.getPropertyValue('--accent-primary').trim() || '#3b82f6',
-                accentLine: 'rgba(59, 130, 246, 0.4)',
                 text: style.getPropertyValue('--text-muted').trim() || '#666',
                 grid: style.getPropertyValue('--border').trim() || '#1f1f1f',
                 bg: style.getPropertyValue('--bg-card').trim() || '#111',
@@ -679,12 +697,16 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         let chartPoints = [];
+        let canvasW = 0, canvasH = 0;
+        let chartPadding = { top: 20, right: 30, bottom: 40, left: 50 };
 
         function draw() {
             try {
                 const rect = container.getBoundingClientRect();
                 canvas.width = rect.width * dpr;
                 canvas.height = 280 * dpr;
+                canvas.style.width = rect.width + 'px';
+                canvas.style.height = '280px';
                 ctx.scale(dpr, dpr);
 
                 const w = canvas.width / dpr;
@@ -696,98 +718,144 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 ctx.clearRect(0, 0, w, h);
 
-                const maxCount = Math.max(...data.map(d => d.count || 0), 1);
+                const counts = data.map(d => d.count || 0);
+                const maxCount = Math.max(...counts, 1);
+                const range = maxCount;
 
-                // Grid
-                ctx.textAlign = 'right'; ctx.textBaseline = 'middle'; ctx.font = '11px Inter, sans-serif';
+                // Y Grid & labels
+                ctx.textAlign = 'right';
+                ctx.textBaseline = 'middle';
+                ctx.font = '11px Inter, sans-serif';
                 for (let i = 0; i <= 5; i++) {
-                    const val = Math.round((maxCount * i) / 5);
+                    const val = Math.round((range * i) / 5);
                     const y = padding.top + chartH - (chartH * i) / 5;
-                    ctx.strokeStyle = colors.grid; ctx.lineWidth = 0.5;
-                    ctx.beginPath(); ctx.moveTo(padding.left, y); ctx.lineTo(w - padding.right, y); ctx.stroke();
-                    ctx.fillStyle = colors.text; ctx.fillText(val.toLocaleString('fr-FR'), padding.left - 8, y);
+                    ctx.strokeStyle = colors.grid;
+                    ctx.lineWidth = 0.5;
+                    ctx.beginPath();
+                    ctx.moveTo(padding.left, y);
+                    ctx.lineTo(w - padding.right, y);
+                    ctx.stroke();
+                    ctx.fillStyle = colors.text;
+                    ctx.fillText(val.toLocaleString('fr-FR'), padding.left - 8, y);
                 }
+
+                canvasW = chartW;
+                canvasH = chartH;
+                chartPadding = padding;
 
                 chartPoints = data.map((d, i) => ({
                     x: padding.left + (chartW * i) / (data.length - 1 || 1),
-                    y: padding.top + chartH - (chartH * ((d.count || 0))) / maxCount,
-                    data: d
+                    y: padding.top + chartH - (chartH * ((d.count || 0))) / range,
+                    data: d,
+                    index: i // Track local index
                 }));
 
-                // Area
-                ctx.beginPath();
-                ctx.moveTo(chartPoints[0].x, padding.top + chartH);
-                chartPoints.forEach(p => ctx.lineTo(p.x, p.y));
-                ctx.lineTo(chartPoints[chartPoints.length - 1].x, padding.top + chartH);
-                const grad = ctx.createLinearGradient(0, padding.top, 0, padding.top + chartH);
-                grad.addColorStop(0, colors.accentLine); grad.addColorStop(1, 'transparent');
-                ctx.fillStyle = grad; ctx.fill();
+                // Area Gradient
+                const gradient = ctx.createLinearGradient(0, padding.top, 0, h - padding.bottom);
+                gradient.addColorStop(0, colors.line + '30');
+                gradient.addColorStop(1, colors.line + '00');
 
-                // Line
-                ctx.beginPath(); ctx.lineWidth = 3; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.strokeStyle = colors.line;
-                chartPoints.forEach((p, i) => i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y));
+                ctx.beginPath();
+                ctx.moveTo(chartPoints[0].x, h - padding.bottom);
+                for (let i = 0; i < chartPoints.length; i++) {
+                    const p = chartPoints[i];
+                    if (i === 0) ctx.lineTo(p.x, p.y);
+                    else {
+                        const prev = chartPoints[i - 1];
+                        const cpx = (prev.x + p.x) / 2;
+                        ctx.bezierCurveTo(cpx, prev.y, cpx, p.y, p.x, p.y);
+                    }
+                }
+                ctx.lineTo(chartPoints[chartPoints.length - 1].x, h - padding.bottom);
+                ctx.closePath();
+                ctx.fillStyle = gradient;
+                ctx.fill();
+
+                // Path
+                ctx.beginPath();
+                ctx.moveTo(chartPoints[0].x, chartPoints[0].y);
+                for (let i = 1; i < chartPoints.length; i++) {
+                    const prev = chartPoints[i - 1];
+                    const p = chartPoints[i];
+                    const cpx = (prev.x + p.x) / 2;
+                    ctx.bezierCurveTo(cpx, prev.y, cpx, p.y, p.x, p.y);
+                }
+                ctx.strokeStyle = colors.line;
+                ctx.lineWidth = 2.5;
                 ctx.stroke();
 
-                // Dots
-                chartPoints.forEach(p => {
-                    ctx.beginPath(); ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
-                    ctx.fillStyle = colors.bg; ctx.fill();
-                    ctx.strokeStyle = colors.line; ctx.lineWidth = 2; ctx.stroke();
-                });
-
-                // Labels
-                ctx.textAlign = 'center'; ctx.fillStyle = colors.text;
-                chartPoints.forEach(p => ctx.fillText(formatLabel(p.data.period), p.x, h - padding.bottom + 10));
-            } catch (err) { console.error('Draw err:', err); }
+                // X labels
+                const step = Math.max(1, Math.ceil(data.length / Math.floor(chartW / 80)));
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'top';
+                ctx.fillStyle = colors.text;
+                for (let i = 0; i < data.length; i += step) {
+                    ctx.fillText(formatLabel(data[i].period), chartPoints[i].x, h - padding.bottom + 10);
+                }
+            } catch (e) { console.error("Chart draw error:", e); }
         }
 
-        // --- Execute logic ---
-        if (direction) {
-            canvas.style.transformOrigin = originX + ' center';
-            canvas.classList.add(direction === 'zoom-in' ? 'zooming' : 'dezooming');
+        draw();
 
-            setTimeout(() => {
-                draw();
-                canvas.classList.remove('zooming', 'dezooming');
-            }, 150);
-        } else {
-            draw();
-        }
-
-        // TOOLTIP & INTERACTIVITY (replace listeners)
-        const newCanvas = canvas.cloneNode(false); // remove listeners
-        canvas.parentNode.replaceChild(newCanvas, canvas);
-
-        newCanvas.addEventListener('mousemove', (e) => {
-            const rect = newCanvas.getBoundingClientRect();
+        // Mouse Interactivity
+        canvas.addEventListener('mousemove', (e) => {
+            const rect = canvas.getBoundingClientRect();
             const mouseX = e.clientX - rect.left;
-            let closest = null, closestDist = Infinity;
-            chartPoints.forEach(p => { const d = Math.abs(mouseX - p.x); if (d < closestDist) { closestDist = d; closest = p; } });
-
+            let closest = null;
+            let closestDist = Infinity;
+            for (const p of chartPoints) {
+                const d = Math.abs(mouseX - p.x);
+                if (d < closestDist) { closestDist = d; closest = p; }
+            }
             if (closest && closestDist < 30) {
                 tooltip.style.display = 'block';
                 tooltip.innerHTML = `<strong>${formatLabel(closest.data.period, true)}</strong><br>${closest.data.count} offres`;
+                const tRect = tooltip.getBoundingClientRect();
+                const cRect = container.getBoundingClientRect();
                 let tx = closest.x + 10;
-                if (tx + 150 > container.offsetWidth) tx = closest.x - 160;
+                let ty = closest.y - 10;
+                if (tx + tRect.width > cRect.width) tx = closest.x - tRect.width - 10;
                 tooltip.style.left = tx + 'px';
-                tooltip.style.top = (closest.y - 10) + 'px';
-                newCanvas.style.cursor = scale !== 'day' ? 'pointer' : 'default';
+                tooltip.style.top = ty + 'px';
+
+                // Add click affordance if not daily scale
+                if (scale !== 'day') {
+                    canvas.style.cursor = 'pointer';
+                } else {
+                    canvas.style.cursor = 'default';
+                }
             } else {
                 tooltip.style.display = 'none';
-                newCanvas.style.cursor = 'default';
+                canvas.style.cursor = 'default';
             }
         });
 
-        newCanvas.addEventListener('click', async (e) => {
-            if (scale === 'day') return;
-            const rect = newCanvas.getBoundingClientRect();
+        canvas.addEventListener('click', async (e) => {
+            if (scale === 'day') return; // Cannot zoom further than day
+
+            const rect = canvas.getBoundingClientRect();
             const mouseX = e.clientX - rect.left;
-            let closest = null, closestDist = Infinity;
-            chartPoints.forEach(p => { const d = Math.abs(mouseX - p.x); if (d < closestDist) { closestDist = d; closest = p; } });
+            let closest = null;
+            let closestDist = Infinity;
+            for (const p of chartPoints) {
+                const d = Math.abs(mouseX - p.x);
+                if (d < closestDist) { closestDist = d; closest = p; }
+            }
 
             if (closest && closestDist < 30) {
+                // Determine target scale
                 const nextScale = scale === 'year' ? 'month' : (scale === 'month' ? 'week' : 'day');
-                const zoomOrigin = `${((closest.x / newCanvas.offsetWidth) * 100).toFixed(2)}%`;
+
+                // Calculate click origin for zoom animation
+                const clickXPercent = ((closest.x / canvasW) * 100).toFixed(2);
+                const zoomOrigin = `${clickXPercent}%`;
+
+                // Fetch new data to align
+                const loading = document.getElementById('timelineLoading');
+                if (loading) {
+                    loading.style.display = 'block';
+                    loading.textContent = 'Zooming...';
+                }
 
                 let nextApiScale = nextScale === 'year' ? 'month' : nextScale;
                 if (!cachedTimelineData[nextApiScale]) {
@@ -795,30 +863,54 @@ document.addEventListener('DOMContentLoaded', () => {
                     cachedTimelineData[nextApiScale] = Array.isArray(res) ? res : [];
                 }
 
-                let targetOffset = 0;
                 const nextFullData = cachedTimelineData[nextApiScale];
+
+                // Try to find the closest date in the new scale
+                let targetOffset = 0;
                 if (nextFullData && nextFullData.length > 0) {
                     const clickTime = getTimelinePeriodTime(closest.data.period, scale);
-                    let minD = Infinity, bestI = nextFullData.length - 1;
-                    nextFullData.forEach((d, i) => { const diff = Math.abs(getTimelinePeriodTime(d.period, nextScale) - clickTime); if (diff < minD) { minD = diff; bestI = i; } });
+                    let minDiff = Infinity;
+                    let bestIndex = nextFullData.length - 1;
+
+                    for (let i = 0; i < nextFullData.length; i++) {
+                        const t = getTimelinePeriodTime(nextFullData[i].period, nextScale);
+                        const diff = Math.abs(t - clickTime);
+                        if (diff < minDiff) {
+                            minDiff = diff;
+                            bestIndex = i;
+                        }
+                    }
+
                     const maxP = nextScale === 'day' ? 3 : (nextScale === 'week' ? 4 : (nextScale === 'month' ? 3 : 12));
-                    targetOffset = Math.max(0, nextFullData.length - (bestI + Math.ceil(maxP / 2)));
+                    let desiredEndIndex = bestIndex + Math.ceil(maxP / 2);
+                    if (desiredEndIndex >= nextFullData.length) desiredEndIndex = nextFullData.length;
+
+                    targetOffset = nextFullData.length - desiredEndIndex;
+                    if (targetOffset < 0) targetOffset = 0;
                 }
 
-                const ctrlContainer = document.querySelector('.timeline-controls');
-                if (ctrlContainer) {
-                    ctrlContainer.querySelectorAll('.btn-scale').forEach(b => {
-                        b.classList.remove('active');
+                // Update UI Controls
+                const container = document.querySelector('.timeline-controls');
+                if (container) {
+                    const btns = container.querySelectorAll('.btn-scale');
+                    btns.forEach(b => {
+                        if (b.id !== 'timelinePrev' && b.id !== 'timelineNext') b.classList.remove('active');
                         if (b.dataset.scale === nextScale) b.classList.add('active');
                     });
                 }
+
                 currentTimelineScale = nextScale;
                 currentTimelineOffset = targetOffset;
                 loadTimelineChart(true, 'zoom-in', zoomOrigin);
             }
         });
 
-        newCanvas.addEventListener('mouseleave', () => { tooltip.style.display = 'none'; newCanvas.style.cursor = 'default'; });
+        canvas.addEventListener('mouseleave', () => {
+            tooltip.style.display = 'none';
+            canvas.style.cursor = 'default';
+        });
+
+        // Global listeners
         if (timelineResizeListener) window.removeEventListener('resize', timelineResizeListener);
         timelineResizeListener = draw;
         window.addEventListener('resize', timelineResizeListener);

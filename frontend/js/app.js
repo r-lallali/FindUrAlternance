@@ -578,8 +578,25 @@ document.addEventListener('DOMContentLoaded', () => {
 
             let apiScale = currentTimelineScale === 'year' ? 'month' : currentTimelineScale;
             if (!cachedTimelineData[apiScale]) {
-                const data = await API.getTimelineStats(apiScale);
-                cachedTimelineData[apiScale] = Array.isArray(data) ? data : [];
+                const rawData = await API.getTimelineStats(apiScale);
+                if (Array.isArray(rawData)) {
+                    // 1. Deduplicate by period (keep first)
+                    const uniqueMap = new Map();
+                    rawData.forEach(item => {
+                        if (item.period && !uniqueMap.has(item.period)) {
+                            uniqueMap.set(item.period, item);
+                        }
+                    });
+
+                    // 2. Sort chronologically by period string (YYYY-MM-DD or YYYY-MM)
+                    const sortedData = Array.from(uniqueMap.values()).sort((a, b) =>
+                        a.period.localeCompare(b.period)
+                    );
+
+                    cachedTimelineData[apiScale] = sortedData;
+                } else {
+                    cachedTimelineData[apiScale] = [];
+                }
             }
 
             const fullData = cachedTimelineData[apiScale];
@@ -630,24 +647,32 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function renderTimelineChart(data, scale = 'month', fullData = [], direction = null, originX = '50%') {
         const container = document.getElementById('timelineChartContainer');
-        const originalCanvas = document.getElementById('timelineCanvas');
         const tooltip = document.getElementById('timelineTooltip');
         if (!container || !data || data.length === 0) return;
 
-        // Transition management: instead of replacing instantly, we mark the old one as outgoing
+        // Cleanup previous resize listener if any
+        if (timelineResizeListener) {
+            window.removeEventListener('resize', timelineResizeListener);
+            timelineResizeListener = null;
+        }
+
+        const originalCanvas = document.getElementById('timelineCanvas');
+
+        // Transition management
         if (direction && originalCanvas) {
-            originalCanvas.id = ''; // Avoid ID conflicts with incoming canvas
+            originalCanvas.id = ''; // Old canvas loses its ID
             originalCanvas.style.pointerEvents = 'none';
             originalCanvas.style.transformOrigin = originX + ' center';
-            // Clear old incoming classes before adding outgoing ones
             originalCanvas.classList.remove('animate-zoom-in', 'animate-zoom-out');
             originalCanvas.classList.add(direction === 'zoom-in' ? 'outgoing-zoom-in' : 'outgoing-zoom-out');
 
-            // Cleanup after animation completes (0.5s in CSS)
+            // Auto-cleanup after animation
+            const oldRef = originalCanvas;
             setTimeout(() => {
                 if (originalCanvas.parentNode) originalCanvas.remove();
             }, 600);
         } else if (originalCanvas) {
+            // Immediate cleanup if no transition direction
             originalCanvas.remove();
         }
 
@@ -810,7 +835,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         draw();
 
-        // Mouse Interactivity
+        // Interactivity & Observers
         canvas.addEventListener('mousemove', (e) => {
             const rect = canvas.getBoundingClientRect();
             const mouseX = e.clientX - rect.left;
@@ -923,10 +948,10 @@ document.addEventListener('DOMContentLoaded', () => {
             canvas.style.cursor = 'default';
         });
 
-        // Global listeners
-        if (timelineResizeListener) window.removeEventListener('resize', timelineResizeListener);
+        // Event cleanup & global listeners for this specific chart instance
         timelineResizeListener = draw;
         window.addEventListener('resize', timelineResizeListener);
+
         if (timelineObserver) timelineObserver.disconnect();
         timelineObserver = new MutationObserver(draw);
         timelineObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });

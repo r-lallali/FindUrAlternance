@@ -131,6 +131,8 @@ const Filters = (() => {
             linkedin: 'LinkedIn',
             hellowork: 'HelloWork',
             wttj: 'Welcome to the Jungle',
+            apec: 'Apec',
+            meteojob: 'Meteojob',
         };
         return names[source] || source;
     }

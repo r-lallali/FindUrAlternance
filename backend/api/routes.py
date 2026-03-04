@@ -805,17 +805,19 @@ async def run_global_scrape():
     """Logic for full system scrape, used by API and Scheduler."""
     from scrapers import (
         LaBonneAlternanceScraper, FranceTravailScraper,
-        LinkedInScraper, HelloWorkScraper, WelcomeToTheJungleScraper
+        LinkedInScraper, HelloWorkScraper, WelcomeToTheJungleScraper,
+        ApecScraper, MeteojobScraper
     )
     from database import SessionLocal
     import asyncio
 
-    scrapers_list = [
         ("labonnealternance", LaBonneAlternanceScraper),
         ("francetravail", FranceTravailScraper),
         ("linkedin", LinkedInScraper),
         ("hellowork", HelloWorkScraper),
         ("wttj", WelcomeToTheJungleScraper),
+        ("apec", ApecScraper),
+        ("meteojob", MeteojobScraper),
     ]
 
     global global_scraping_status
@@ -889,7 +891,8 @@ async def trigger_scrape(source: str, background_tasks: BackgroundTasks, db: Ses
     """Manually trigger scraping for a specific source."""
     from scrapers import (
         LaBonneAlternanceScraper, FranceTravailScraper,
-        LinkedInScraper, HelloWorkScraper, WelcomeToTheJungleScraper
+        LinkedInScraper, HelloWorkScraper, WelcomeToTheJungleScraper,
+        ApecScraper, MeteojobScraper
     )
 
     scrapers = {
@@ -898,6 +901,8 @@ async def trigger_scrape(source: str, background_tasks: BackgroundTasks, db: Ses
         "linkedin": LinkedInScraper,
         "hellowork": HelloWorkScraper,
         "wttj": WelcomeToTheJungleScraper,
+        "apec": ApecScraper,
+        "meteojob": MeteojobScraper,
     }
 
     if source not in scrapers:
@@ -985,9 +990,10 @@ async def trigger_scrape_all(background_tasks: BackgroundTasks, db: Session = De
     # Return starting status for UI
     from scrapers import (
         LaBonneAlternanceScraper, FranceTravailScraper,
-        LinkedInScraper, HelloWorkScraper, WelcomeToTheJungleScraper
+        LinkedInScraper, HelloWorkScraper, WelcomeToTheJungleScraper,
+        ApecScraper, MeteojobScraper
     )
-    scrapers_list = ["labonnealternance", "francetravail", "linkedin", "hellowork", "wttj"]
+    scrapers_list = ["labonnealternance", "francetravail", "linkedin", "hellowork", "wttj", "apec", "meteojob"]
     
     results = []
     for source_name in scrapers_list:

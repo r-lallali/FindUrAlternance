@@ -7,6 +7,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // State
     let currentModalOffer = null;
     let currentTimelineScale = 'month';
+    let currentTimelineOffset = 0; // 0 means most recent
     let cachedTimelineData = {};
     let cachedTechStats = null;
     let cachedGeneralStats = null;
@@ -461,8 +462,19 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!container) return;
 
         container.addEventListener('click', (e) => {
+            if (e.target.closest('#timelinePrev')) {
+                currentTimelineOffset++;
+                loadTimelineChart();
+                return;
+            }
+            if (e.target.closest('#timelineNext')) {
+                if (currentTimelineOffset > 0) currentTimelineOffset--;
+                loadTimelineChart();
+                return;
+            }
+
             const btn = e.target.closest('.btn-scale');
-            if (!btn) return;
+            if (!btn || btn.id === 'timelinePrev' || btn.id === 'timelineNext') return;
 
             const scale = btn.dataset.scale;
             if (scale === currentTimelineScale) return;
@@ -474,6 +486,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // State Update
             currentTimelineScale = scale;
+            currentTimelineOffset = 0; // Reset offset when changing scale
             loadTimelineChart();
         });
     }
@@ -493,10 +506,26 @@ document.addEventListener('DOMContentLoaded', () => {
                 cachedTimelineData[currentTimelineScale] = Array.isArray(data) ? data : [];
             }
 
-            const data = cachedTimelineData[currentTimelineScale];
+            const fullData = cachedTimelineData[currentTimelineScale];
 
-            if (data && data.length > 0) {
+            if (fullData && fullData.length > 0) {
                 loading.style.display = 'none';
+
+                let maxPoints = 20;
+                if (currentTimelineScale === 'month') maxPoints = 24;
+                if (currentTimelineScale === 'week') maxPoints = 24;
+                if (currentTimelineScale === 'day') maxPoints = 30;
+
+                const endIndex = fullData.length - (currentTimelineOffset * maxPoints);
+                const startIndex = Math.max(0, endIndex - maxPoints);
+                const data = fullData.slice(startIndex, Math.max(0, endIndex));
+
+                // Update nav buttons
+                const btnPrev = document.getElementById('timelinePrev');
+                const btnNext = document.getElementById('timelineNext');
+                if (btnPrev) btnPrev.disabled = startIndex <= 0;
+                if (btnNext) btnNext.disabled = currentTimelineOffset <= 0;
+
                 renderTimelineChart(data, currentTimelineScale);
             } else {
                 loading.style.display = 'block';
@@ -534,6 +563,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 const year = parts[0];
                 const value = parseInt(parts[1], 10);
                 const shortYear = year.substring(2);
+
+                if (scale === 'day') {
+                    const date = new Date(year, parseInt(parts[1], 10) - 1, parts[2] ? parseInt(parts[2], 10) : 1);
+                    const dd = String(date.getDate()).padStart(2, '0');
+                    const mm = String(date.getMonth() + 1).padStart(2, '0');
+                    if (isTooltip) {
+                        return `${dd}/${mm}/${year}`;
+                    }
+                    return `${dd}/${mm}`;
+                }
 
                 if (scale === 'week') {
                     if (isTooltip) {

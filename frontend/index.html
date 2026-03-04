@@ -158,8 +158,13 @@
                             <div class="stats-panel-header">
                                 <h3 class="stats-panel-title">Évolution du nombre d'offres</h3>
                                 <div class="timeline-controls">
+                                    <button class="btn-scale" id="timelinePrev" title="Plus ancien"
+                                        style="padding: 4px 10px; font-weight: bold;">&lsaquo;</button>
                                     <button class="btn-scale active" data-scale="month">Mensuel</button>
                                     <button class="btn-scale" data-scale="week">Hebdo</button>
+                                    <button class="btn-scale" data-scale="day">Quotidien</button>
+                                    <button class="btn-scale" id="timelineNext" title="Plus récent"
+                                        style="padding: 4px 10px; font-weight: bold;" disabled>&rsaquo;</button>
                                 </div>
                             </div>
                             <div class="timeline-chart-container" id="timelineChartContainer">

@@ -811,6 +811,7 @@ async def run_global_scrape():
     from database import SessionLocal
     import asyncio
 
+    scrapers_list = [
         ("labonnealternance", LaBonneAlternanceScraper),
         ("francetravail", FranceTravailScraper),
         ("linkedin", LinkedInScraper),

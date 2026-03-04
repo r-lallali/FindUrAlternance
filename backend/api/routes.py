@@ -337,7 +337,17 @@ async def get_offers(
     if category:
         query = query.filter(Offer.category.ilike(f"%{category}%"))
     if location:
-        query = query.filter(Offer.location.ilike(f"%{location}%"))
+        from scrapers.utils import extract_department
+        dept_match = extract_department(location)
+        if dept_match:
+            query = query.filter(
+                or_(
+                    Offer.location.ilike(f"%{location}%"),
+                    Offer.department == dept_match
+                )
+            )
+        else:
+            query = query.filter(Offer.location.ilike(f"%{location}%"))
     if department:
         query = query.filter(Offer.department == department)
     if contract_type:

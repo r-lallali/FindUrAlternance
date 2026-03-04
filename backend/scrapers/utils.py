@@ -17,7 +17,7 @@ SCHOOL_KEYWORDS = [
     "isep", "ece", "esilv", "emlyon", "escp", "essec", "hec",
     "kedge", "skema", "neoma", "audencia", "grenoble em",
     # Alternance-focused training schools (often post as "companies")
-    "iscod", "icademie", "i-cademie", "livecampus", "live campus",
+    "iscod", "oktogone", "oktogone group", "icademie", "i-cademie", "livecampus", "live campus",
     "aurlom", "2i academy", "2iacademy", "openclassrooms", "open classrooms",
     "studi", "doranco", "ifocop", "aftec", "pigier", "cogefi",
     "comptalia", "aftral", "afpa", "greta", "cesi", "enaco",

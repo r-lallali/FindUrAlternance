@@ -24,7 +24,7 @@ SCHOOL_KEYWORDS = [
     "esecad", "efc", "cnfdi", "skill and you", "skillandyou",
     "visiplus", "digital campus", "digital school", "digital college",
     "jobergroup", "jober group", "vitalliance", "formaposte", "formaposte sud est",
-    "formaposte sud-est", "carrevolutis", "boulangerie ange", "maten",
+    "formaposte sud-est", "carrevolutis", "boulangerie ange", "maten", "synd dauphinois apprentissage",
     "hetic", "web@cadémie", "webacademie", "wild code school",
     "wildcodeschool", "le wagon", "lewagon", "la capsule",
     "iron hack", "ironhack", "simplon", "pop school", "popschool",

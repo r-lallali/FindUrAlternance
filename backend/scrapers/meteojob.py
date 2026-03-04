@@ -24,44 +24,51 @@ class MeteojobScraper(BaseScraper):
         async with AsyncSession(impersonate="chrome110") as session:
             for term in search_terms:
                 self.logger.info(f"Meteojob: Searching for '{term}'")
-                # Using the exact params structure from the subagent
-                params = {
-                    "serjobsearch": "true",
-                    "scoringVersion": "SERJOBSEARCH",
-                    "what": term,
-                    "where": "France",
-                    "sorting": "SCORING",
-                    "page": 1,
-                    "limit": 50,
-                    "expandLocations": "true",
-                    "facetSince": 30
-                }
                 
-                try:
-                    response = await session.get(
-                        self.SEARCH_API_URL, 
-                        params=params,
-                        headers={
-                            "x-meteojob-requester": "candidate-front",
-                            "Referer": f"https://www.meteojob.com/jobs?what={term}"
-                        }
-                    )
+                # Fetch up to 5 pages
+                for page in range(1, 6):
+                    params = {
+                        "serjobsearch": "true",
+                        "scoringVersion": "SERJOBSEARCH",
+                        "what": term,
+                        "where": "France",
+                        "sorting": "SCORING",
+                        "page": page,
+                        "limit": 50,
+                        "expandLocations": "true",
+                        "facetSince": 30
+                    }
                     
-                    if response.status_code == 200:
-                        data = response.json()
-                        content = data.get("content", [])
-                        self.logger.info(f"Meteojob: Found {len(content)} items for '{term}'")
-                        for item in content:
-                            oid = item.get("id")
-                            if oid and oid not in seen_ids:
-                                seen_ids.add(oid)
-                                all_offers.append(item)
-                    else:
-                        self.logger.warning(f"Meteojob search failed with status {response.status_code} for '{term}'")
-                except Exception as e:
-                    self.logger.error(f"Error in Meteojob scrape for '{term}': {e}")
-                
-                await asyncio.sleep(1)
+                    try:
+                        response = await session.get(
+                            self.SEARCH_API_URL, 
+                            params=params,
+                            headers={
+                                "x-meteojob-requester": "candidate-front",
+                                "Referer": f"https://www.meteojob.com/jobs?what={term}"
+                            }
+                        )
+                        
+                        if response.status_code == 200:
+                            data = response.json()
+                            content = data.get("content", [])
+                            if not content:
+                                break
+                                
+                            self.logger.info(f"Meteojob: Found {len(content)} items on page {page} for '{term}'")
+                            for item in content:
+                                oid = item.get("id")
+                                if oid and oid not in seen_ids:
+                                    seen_ids.add(oid)
+                                    all_offers.append(item)
+                        else:
+                            self.logger.warning(f"Meteojob search failed with status {response.status_code} for '{term}' at page {page}")
+                            break
+                    except Exception as e:
+                        self.logger.error(f"Error in Meteojob scrape for '{term}' at page {page}: {e}")
+                        break
+                    
+                    await asyncio.sleep(1)
 
         return all_offers
 

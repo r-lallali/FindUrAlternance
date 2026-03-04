@@ -954,8 +954,9 @@ async def trigger_scrape(source: str, background_tasks: BackgroundTasks, db: Ses
                     bg_db.add(offer)
                     new_count += 1
                 else:
-                    if not existing.description and offer_data.get("description"):
-                        existing.description = offer_data["description"]
+                    if offer_data.get("description"):
+                        if not existing.description or len(offer_data["description"]) > len(existing.description):
+                            existing.description = offer_data["description"]
                     if not existing.publication_date and offer_data.get("publication_date"):
                         existing.publication_date = offer_data["publication_date"]
             bg_db.commit()

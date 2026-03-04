@@ -18,22 +18,23 @@ class ApecScraper(BaseScraper):
         super().__init__("apec")
 
     async def scrape(self, **kwargs) -> List[Dict[str, Any]]:
-        search_terms = kwargs.get("search_terms", ["alternance", "apprentissage"])
+        # Fetch all alternance offers without keyword constraints
+        search_terms = [""]
         all_offers = []
         seen_ids = set()
 
         async with AsyncSession(impersonate="chrome110") as session:
             for term in search_terms:
-                self.logger.info(f"Apec: Searching for '{term}'")
+                self.logger.info(f"Apec: Searching all alternance offers")
                 
-                # Fetch up to 10 pages (100 results per page = 1000+ offers per term)
+                # Fetch up to 50 pages (100 results per page = 5000 offers per term)
                 # Note: Apec might cap results, but we try.
-                for start_index in range(0, 1000, 100):
+                for start_index in range(0, 5000, 100):
                     payload = {
                         "lieux": [],
                         "fonctions": [],
                         "statutPoste": [],
-                        "typesContrat": [],
+                        "typesContrat": ["20053", "597137", "597138", "597139", "597140"],
                         "typesConvention": ["143684", "143685", "143686", "143687", "143706"],
                         "pagination": {"range": 100, "startIndex": start_index},
                         "motsCles": term,

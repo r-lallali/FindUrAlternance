@@ -17,16 +17,17 @@ class MeteojobScraper(BaseScraper):
         super().__init__("meteojob")
 
     async def scrape(self, **kwargs) -> List[Dict[str, Any]]:
-        search_terms = kwargs.get("search_terms", ["alternance", "apprentissage"])
+        # Instead of searching specific keywords, we want ALL alternance offers.
+        search_terms = [""]
         all_offers = []
         seen_ids = set()
 
         async with AsyncSession(impersonate="chrome110") as session:
             for term in search_terms:
-                self.logger.info(f"Meteojob: Searching for '{term}'")
+                self.logger.info(f"Meteojob: Searching all alternances (no keyword restrictions...)")
                 
-                # Fetch up to 20 pages (1000 results per term)
-                for page in range(1, 21):
+                # Fetch up to 50 pages (2500 results)
+                for page in range(1, 51):
                     params = {
                         "serjobsearch": "true",
                         "scoringVersion": "SERJOBSEARCH",
@@ -36,7 +37,8 @@ class MeteojobScraper(BaseScraper):
                         "page": page,
                         "limit": 50,
                         "expandLocations": "true",
-                        "facetSince": 30
+                        "facetSince": 30,
+                        "facetContract": "APPRENTICE"
                     }
                     
                     try:

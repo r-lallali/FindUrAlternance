@@ -49,9 +49,9 @@ class MeteojobScraper(BaseScraper):
                     
                     if response.status_code == 200:
                         data = response.json()
-                        hits = data.get("hits", [])
-                        self.logger.info(f"Meteojob: Found {len(hits)} hits for '{term}'")
-                        for item in hits:
+                        content = data.get("content", [])
+                        self.logger.info(f"Meteojob: Found {len(content)} items for '{term}'")
+                        for item in content:
                             oid = item.get("id")
                             if oid and oid not in seen_ids:
                                 seen_ids.add(oid)
@@ -74,11 +74,13 @@ class MeteojobScraper(BaseScraper):
             title = raw_data.get("title", "")
             company = raw_data.get("company", {}).get("name", "Entreprise confidentielle")
             
-            # Location
-            location_data = raw_data.get("location", {})
-            city = location_data.get("city", "")
-            postal_code = location_data.get("postalCode", "")
-            location = f"{city} ({postal_code})" if city and postal_code else (city or "")
+            # Locations (plural now)
+            locations_list = raw_data.get("locations", [])
+            location = ""
+            if locations_list:
+                # Use the 'name' field from the first priority location or the first one
+                loc_item = next((l for l in locations_list if l.get("priority")), locations_list[0])
+                location = loc_item.get("name", "")
             
             description = raw_data.get("description", "")
             
@@ -87,14 +89,29 @@ class MeteojobScraper(BaseScraper):
             date_str = raw_data.get("publicationDate")
             if date_str:
                 try:
+                    # Meteojob date can be ISO format
                     pub_date = datetime.fromisoformat(date_str.replace("Z", "+00:00"))
                 except:
                     pass
             
-            # URL
-            slug = raw_data.get("slug", "")
-            url = f"https://www.meteojob.com/offres-emploi/{slug}-{oid}"
+            # URL (dictionary now)
+            url_data = raw_data.get("url", {})
+            href = url_data.get("jobOffer") or url_data.get("jobOfferShort")
+            if href:
+                url = f"https://www.meteojob.com{href}" if href.startswith("/") else href
+            else:
+                # Fallback if URL data is missing
+                slug = raw_data.get("slug", "")
+                url = f"https://www.meteojob.com/offres-emploi/{slug}-{oid}"
             
+            # Salary
+            salary_data = raw_data.get("salary", {})
+            salary_text = salary_data.get("displaySalary")
+            if salary_text == "PROFILE":
+                salary_text = "Selon profil"
+            elif not salary_text:
+                salary_text = salary_data.get("text")
+
             is_school = is_school_offer(company, description)
             cloc = clean_text(location)
             enriched_loc, dept = enrich_location(cloc)
@@ -105,7 +122,7 @@ class MeteojobScraper(BaseScraper):
                 "location": enriched_loc or cloc,
                 "department": dept,
                 "contract_type": "Alternance",
-                "salary": raw_data.get("salary", {}).get("text"),
+                "salary": salary_text,
                 "description": clean_text(description),
                 "profile": None,
                 "category": None,

@@ -108,11 +108,7 @@ const Filters = (() => {
             });
         }
 
-        // Reset button
-        const resetBtn = document.getElementById('btnReset');
-        if (resetBtn) {
-            resetBtn.addEventListener('click', () => reset(false));
-        }
+        // Sort select
 
         // Mobile sidebar toggle
         const sidebarToggle = document.getElementById('sidebarToggle');

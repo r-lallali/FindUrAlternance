@@ -35,6 +35,13 @@ document.addEventListener('DOMContentLoaded', () => {
     setTimeout(updateTabIndicator, 100);
     window.addEventListener('resize', updateTabIndicator);
 
+    const btnReset = document.getElementById('btnReset');
+    if (btnReset) {
+        btnReset.addEventListener('click', () => {
+            Filters.reset();
+        });
+    }
+
     const headerLogo = document.getElementById('headerLogo');
     if (headerLogo) {
         headerLogo.addEventListener('click', () => {

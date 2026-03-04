@@ -511,12 +511,12 @@ document.addEventListener('DOMContentLoaded', () => {
             if (fullData && fullData.length > 0) {
                 loading.style.display = 'none';
 
-                let maxPoints = 20;
+                let maxPoints = 12;
                 if (currentTimelineScale === 'month') maxPoints = 24;
                 if (currentTimelineScale === 'week') maxPoints = 24;
-                if (currentTimelineScale === 'day') maxPoints = 30;
+                if (currentTimelineScale === 'day') maxPoints = 3; // Focus on 3 days
 
-                const endIndex = fullData.length - (currentTimelineOffset * maxPoints);
+                const endIndex = fullData.length - currentTimelineOffset;
                 const startIndex = Math.max(0, endIndex - maxPoints);
                 const data = fullData.slice(startIndex, Math.max(0, endIndex));
 

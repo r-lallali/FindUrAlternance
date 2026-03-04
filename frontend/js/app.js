@@ -35,7 +35,10 @@ document.addEventListener('DOMContentLoaded', () => {
     setTimeout(updateTabIndicator, 100);
     window.addEventListener('resize', updateTabIndicator);
 
-    function resetToOffers() {
+    function resetToOffers(e) {
+        if (e && typeof e.preventDefault === 'function') {
+            e.preventDefault();
+        }
         const tabBtns = document.querySelectorAll('.tab-btn');
         tabBtns.forEach((b) => b.classList.remove('active'));
         const offersTab = document.getElementById('tabOffers');

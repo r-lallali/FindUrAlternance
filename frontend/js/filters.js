@@ -189,6 +189,11 @@ const Filters = (() => {
      * @param {boolean} silent If true, do not trigger a search event.
      */
     function reset(silent = false) {
+        if (debounceTimer) {
+            clearTimeout(debounceTimer);
+            debounceTimer = null;
+        }
+
         // Reset state to initial values
         state = {
             keyword: '',

@@ -455,13 +455,26 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ===== TIMELINE CHART =====
+    const getTimelinePeriodTime = (period, pScale) => {
+        if (!period || !period.includes('-')) return Date.now();
+        const parts = period.split('-');
+        const year = parseInt(parts[0], 10);
+        const val = parseInt(parts[1] || 1, 10);
+        if (pScale === 'day') {
+            return new Date(year, val - 1, parts[2] ? parseInt(parts[2], 10) : 1).getTime();
+        } else if (pScale === 'week') {
+            return new Date(year, 0, 1 + (val - 1) * 7).getTime();
+        } else { // month or year, both use YYYY-MM
+            return new Date(year, val - 1, 1).getTime();
+        }
+    };
 
     function initTimelineControls() {
         // Use event delegation or direct naming for reliability
         const container = document.querySelector('.timeline-controls');
         if (!container) return;
 
-        container.addEventListener('click', (e) => {
+        container.addEventListener('click', async (e) => {
             if (e.target.closest('#timelinePrev')) {
                 currentTimelineOffset++;
                 loadTimelineChart();
@@ -486,10 +499,62 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             btn.classList.add('active');
 
-            // State Update
+            // Find center time of current view
             const oldScale = currentTimelineScale;
+            const oldApiScale = oldScale === 'year' ? 'month' : oldScale;
+            let centerTime = Date.now();
+
+            if (cachedTimelineData[oldApiScale]) {
+                const viewData = cachedTimelineData[oldApiScale];
+                let mPts = { 'year': 12, 'month': 3, 'week': 6, 'day': 3 }[oldScale] || 12;
+                const endIdx = viewData.length - currentTimelineOffset;
+                const startIdx = Math.max(0, endIdx - mPts);
+                const curSlice = viewData.slice(startIdx, Math.max(0, endIdx));
+                if (curSlice && curSlice.length > 0) {
+                    centerTime = getTimelinePeriodTime(curSlice[Math.floor(curSlice.length / 2)].period, oldScale);
+                }
+            }
+
+            // State Update
             currentTimelineScale = scale;
-            currentTimelineOffset = 0; // Reset offset when changing scale
+
+            // Fetch target scale data
+            const newApiScale = scale === 'year' ? 'month' : scale;
+            if (!cachedTimelineData[newApiScale]) {
+                const loading = document.getElementById('timelineLoading');
+                if (loading) {
+                    loading.style.display = 'block';
+                    loading.textContent = 'Calcul...';
+                }
+                const res = await API.getTimelineStats(newApiScale);
+                cachedTimelineData[newApiScale] = Array.isArray(res) ? res : [];
+            }
+
+            // Find equivalent offset
+            let targetOffset = 0;
+            const nextFullData = cachedTimelineData[newApiScale];
+
+            if (nextFullData && nextFullData.length > 0) {
+                let minDiff = Infinity;
+                let bestIndex = nextFullData.length - 1;
+
+                for (let i = 0; i < nextFullData.length; i++) {
+                    const t = getTimelinePeriodTime(nextFullData[i].period, scale);
+                    const diff = Math.abs(t - centerTime);
+                    if (diff < minDiff) {
+                        minDiff = diff;
+                        bestIndex = i;
+                    }
+                }
+
+                const maxP = { 'year': 12, 'month': 3, 'week': 6, 'day': 3 }[scale] || 12;
+                let desiredEndIndex = bestIndex + Math.ceil(maxP / 2);
+                if (desiredEndIndex >= nextFullData.length) desiredEndIndex = nextFullData.length;
+
+                targetOffset = nextFullData.length - desiredEndIndex;
+                if (targetOffset < 0) targetOffset = 0;
+            }
+            currentTimelineOffset = targetOffset;
 
             const levels = { 'year': 4, 'month': 3, 'week': 2, 'day': 1 };
             let direction = null;
@@ -802,26 +867,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Try to find the closest date in the new scale
                 let targetOffset = 0;
                 if (nextFullData && nextFullData.length > 0) {
-                    const getPeriodTime = (period, pScale) => {
-                        if (!period || !period.includes('-')) return Date.now();
-                        const parts = period.split('-');
-                        const year = parseInt(parts[0], 10);
-                        const val = parseInt(parts[1] || 1, 10);
-                        if (pScale === 'day') {
-                            return new Date(year, val - 1, parts[2] ? parseInt(parts[2], 10) : 1).getTime();
-                        } else if (pScale === 'week') {
-                            return new Date(year, 0, 1 + (val - 1) * 7).getTime();
-                        } else { // month or year, both use YYYY-MM
-                            return new Date(year, val - 1, 1).getTime();
-                        }
-                    };
-
-                    const clickTime = getPeriodTime(closest.data.period, scale);
+                    const clickTime = getTimelinePeriodTime(closest.data.period, scale);
                     let minDiff = Infinity;
                     let bestIndex = nextFullData.length - 1;
 
                     for (let i = 0; i < nextFullData.length; i++) {
-                        const t = getPeriodTime(nextFullData[i].period, nextScale);
+                        const t = getTimelinePeriodTime(nextFullData[i].period, nextScale);
                         const diff = Math.abs(t - clickTime);
                         if (diff < minDiff) {
                             minDiff = diff;

@@ -470,20 +470,61 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
+    function attachTimelineSwipe() {
+        const chartWrapper = document.getElementById('timelineChartContainer');
+        if (!chartWrapper) return;
+
+        // Remove old listeners to avoid duplicates
+        const newWrapper = chartWrapper.cloneNode(true);
+        chartWrapper.parentNode.replaceChild(newWrapper, chartWrapper);
+
+        let touchStartX = 0;
+        let touchEndX = 0;
+
+        newWrapper.addEventListener('touchstart', e => {
+            touchStartX = e.changedTouches[0].screenX;
+        }, { passive: true });
+
+        newWrapper.addEventListener('touchend', e => {
+            touchEndX = e.changedTouches[0].screenX;
+            handleSwipe();
+        }, { passive: true });
+
+        function handleSwipe() {
+            const swipeThreshold = 50;
+            if (touchEndX < touchStartX - swipeThreshold) {
+                // Swipe Left -> Move forward in time (Next)
+                const nextBtn = document.getElementById('timelineNext');
+                if (nextBtn && !nextBtn.disabled) {
+                    if (currentTimelineOffset > 0) currentTimelineOffset--;
+                    loadTimelineChart('zoom-out', '100%');
+                }
+            }
+            if (touchEndX > touchStartX + swipeThreshold) {
+                // Swipe Right -> Move backward in time (Prev)
+                const prevBtn = document.getElementById('timelinePrev');
+                if (prevBtn && !prevBtn.disabled) {
+                    currentTimelineOffset++;
+                    loadTimelineChart('zoom-out', '0%');
+                }
+            }
+        }
+    }
+
     function initTimelineControls() {
         // Use event delegation or direct naming for reliability
-        const container = document.querySelector('.timeline-controls');
+        const container = document.getElementById('timelineChartHeader');
         if (!container) return;
 
         container.addEventListener('click', async (e) => {
-            if (e.target.closest('#timelinePrev')) {
+            if (e.target.closest('#timelinePrev') && !document.getElementById('timelinePrev').disabled) {
                 currentTimelineOffset++;
-                loadTimelineChart();
+                loadTimelineChart('zoom-in');
                 return;
             }
-            if (e.target.closest('#timelineNext')) {
+            if (e.target.closest('#timelineNext') && !document.getElementById('timelineNext').disabled) {
                 if (currentTimelineOffset > 0) currentTimelineOffset--;
-                loadTimelineChart();
+                loadTimelineChart('zoom-in');
                 return;
             }
 
@@ -606,8 +647,8 @@ document.addEventListener('DOMContentLoaded', () => {
                         btnPrev.style.display = 'none';
                         btnNext.style.display = 'none';
                     } else {
-                        btnPrev.style.display = 'inline-block';
-                        btnNext.style.display = 'inline-block';
+                        btnPrev.style.display = 'flex';
+                        btnNext.style.display = 'flex';
                         btnPrev.disabled = startIndex <= 0;
                         btnNext.disabled = currentTimelineOffset <= 0;
                     }
@@ -921,6 +962,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (timelineObserver) timelineObserver.disconnect();
         timelineObserver = new MutationObserver(draw);
         timelineObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+
+        attachTimelineSwipe();
     }
 
     function renderBarChart(containerId, data, cssClass, filterType) {

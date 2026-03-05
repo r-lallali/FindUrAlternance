@@ -1435,7 +1435,7 @@ a:hover {
     color: var(--text-secondary) !important;
     text-transform: uppercase !important;
     letter-spacing: 0.8px !important;
-    margin-bottom: 0 !important;
+    margin-bottom: 16px !important;
     text-align: center !important;
     flex: 1 !important;
 }

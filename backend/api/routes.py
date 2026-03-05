@@ -589,6 +589,9 @@ async def get_stats(
     bac5_offers = base_query.filter(
         or_(
             Offer.profile.ilike("%bac+5%"),
+            Offer.profile.ilike("%master%"),
+            Offer.profile.ilike("%m2%"),
+            Offer.profile.ilike("%ingénieur%"),
             Offer.description.ilike("%bac+5%"),
             Offer.description.ilike("%bac + 5%"),
             Offer.description.ilike("%master%"),
@@ -665,13 +668,29 @@ async def get_tech_stats(
                 except (json.JSONDecodeError, TypeError):
                     pass
 
-    # Compute additional statistics with trimming to avoid duplicates due to spacing
-    top_companies_query = base_query.with_entities(func.trim(Offer.company), func.count(Offer.id))\
+    # Step 1: Get the top company names based on the company field
+    raw_top_companies = base_query.with_entities(func.trim(Offer.company))\
         .filter(Offer.company.isnot(None), Offer.company != "")\
         .group_by(func.trim(Offer.company))\
         .order_by(desc(func.count(Offer.id)))\
         .limit(15).all()
     
+    # Step 2: Compute broad counts (matching keyword search) for each of these companies
+    top_companies = []
+    for (name,) in raw_top_companies:
+        # Use the same logic as keyword search for consistency
+        name_filter = f"%{name}%"
+        count = base_query.filter(
+            or_(
+                Offer.company.ilike(name_filter),
+                Offer.title.ilike(name_filter),
+                Offer.description.ilike(name_filter)
+            )
+        ).count()
+        top_companies.append({"name": name, "count": count})
+    # Sort again because broad counts might change the order
+    top_companies.sort(key=lambda x: x["count"], reverse=True)
+
     top_departments_query = base_query.with_entities(func.trim(Offer.department), func.count(Offer.id))\
         .filter(Offer.department.isnot(None), Offer.department != "")\
         .group_by(func.trim(Offer.department))\
@@ -699,7 +718,7 @@ async def get_tech_stats(
         total_it_offers=total_it,
         total_offers=total_offers,
         top_departments=format_query(top_departments_query),
-        top_companies=format_query(top_companies_query),
+        top_companies=top_companies,
         top_categories=format_query(top_categories_query)
     )
 

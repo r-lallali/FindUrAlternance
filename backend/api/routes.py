@@ -253,7 +253,7 @@ async def get_offers(
     if category:
         query = query.filter(Offer.category.ilike(category))
     if company:
-        query = query.filter(Offer.company.ilike(company))
+        query = query.filter(func.trim(Offer.company).ilike(company))
     if location:
         from scrapers.utils import extract_department
         dept_match = extract_department(location)
@@ -531,9 +531,9 @@ async def get_stats(
         .group_by(Offer.source).all()
     )
     by_category = dict(
-        base_query.with_entities(Offer.category, func.count(Offer.id))
+        base_query.with_entities(func.trim(Offer.category), func.count(Offer.id))
         .filter(Offer.category.isnot(None), Offer.category != "")
-        .group_by(Offer.category)
+        .group_by(func.trim(Offer.category))
         .order_by(desc(func.count(Offer.id)))
         .limit(10).all()
     )

@@ -1,9 +1,10 @@
 """API routes for the alternance dashboard."""
 
 import json
+import time
 from collections import Counter
 from datetime import datetime, timedelta
-from typing import Optional
+from typing import Optional, Any
 from fastapi import APIRouter, Depends, Query, HTTPException, status, BackgroundTasks
 from sqlalchemy.orm import Session
 from sqlalchemy import func, or_, desc, cast
@@ -19,6 +20,32 @@ from schemas import (
 from auth import hash_password, verify_password, create_token, get_current_user, get_optional_user
 
 router = APIRouter(prefix="/api", tags=["offers"])
+
+# ─── IN-MEMORY CACHE FOR STATS ───
+class StatsCache:
+    def __init__(self):
+        self._cache = {}
+        self._ttl = 600  # 10 minutes
+
+    def get(self, key: str) -> Optional[Any]:
+        if key in self._cache:
+            entry = self._cache[key]
+            if time.time() - entry['timestamp'] < self._ttl:
+                return entry['data']
+            else:
+                del self._cache[key]
+        return None
+
+    def set(self, key: str, data: Any):
+        self._cache[key] = {
+            'data': data,
+            'timestamp': time.time()
+        }
+
+    def clear(self):
+        self._cache = {}
+
+global_stats_cache = StatsCache()
 
 
 # ═══════════════════════════════════════════════════════
@@ -516,6 +543,11 @@ async def get_stats(
     db: Session = Depends(get_db)
 ):
     """Get dashboard statistics."""
+    cache_key = f"stats_{user.id if user else 'anon'}"
+    cached = global_stats_cache.get(cache_key)
+    if cached:
+        return cached
+
     base_query = _base_query(db)
     
     # Exclude offers favorited by the current user to match the search results
@@ -570,7 +602,7 @@ async def get_stats(
         .limit(10).all()
     )
 
-    return {
+    res = {
         "total_offers": total_offers,
         "by_source": by_source,
         "by_category": by_category,
@@ -581,6 +613,8 @@ async def get_stats(
         "bac4_offers": bac4_offers,
         "bac5_offers": bac5_offers,
     }
+    global_stats_cache.set(cache_key, res)
+    return res
 
 
 @router.get("/stats/tech", response_model=TechStats)
@@ -589,6 +623,11 @@ async def get_tech_stats(
     db: Session = Depends(get_db)
 ):
     """Get detailed technology statistics with maximum performance (One-pass scan)."""
+    cache_key = f"tech_stats_{user.id if user else 'anon'}"
+    cached = global_stats_cache.get(cache_key)
+    if cached:
+        return cached
+
     base_query = _base_query(db)
 
     if user:
@@ -677,7 +716,7 @@ async def get_tech_stats(
     def format_counter(counter, limit=15):
         return [{"name": name, "count": count} for name, count in counter.most_common(limit)]
 
-    return TechStats(
+    res = TechStats(
         top_languages=format_counter(lang_counter),
         top_frameworks=format_counter(fw_counter),
         top_tools=format_counter(tool_counter),
@@ -689,6 +728,8 @@ async def get_tech_stats(
         top_companies=top_companies_resolved,
         top_categories=format_counter(cat_counter, 10)
     )
+    global_stats_cache.set(cache_key, res)
+    return res
 
 
 @router.get("/stats/timeline")
@@ -697,6 +738,10 @@ async def get_timeline_stats(
     db: Session = Depends(get_db)
 ):
     """Get offer counts grouped by period for the timeline chart. Optimized for speed and historical data."""
+    cache_key = f"timeline_stats_{scale}"
+    cached = global_stats_cache.get(cache_key)
+    if cached:
+        return cached
     try:
         # Scale mapping: how far back to look
         days_map = {
@@ -730,7 +775,9 @@ async def get_timeline_stats(
             func.count(Offer.id).label("count")
         ).group_by(group_expr).order_by(group_expr).all()
 
-        return [{"period": r.period, "count": r.count} for r in results if r.period]
+        res = [{"period": r.period, "count": r.count} for r in results if r.period]
+        global_stats_cache.set(cache_key, res)
+        return res
     except Exception as e:
         print(f"Error in get_timeline_stats: {e}")
         return []
@@ -838,6 +885,7 @@ async def run_global_scrape():
     tasks = [scrape_and_save(name, cls) for name, cls in scrapers_list]
     await asyncio.gather(*tasks, return_exceptions=True)
             
+    global_stats_cache.clear()
     global_scraping_status["progress"] = 100
     global_scraping_status["message"] = "Terminé"
     global_scraping_status["details"] = "Tous les sites ont été analysés."
@@ -921,6 +969,7 @@ async def trigger_scrape(source: str, background_tasks: BackgroundTasks, db: Ses
                     if offer_data.get("publication_date"):
                         existing.publication_date = offer_data["publication_date"]
             bg_db.commit()
+            global_stats_cache.clear()
             global_scraping_status["progress"] = 100
             global_scraping_status["message"] = "Terminé"
             global_scraping_status["details"] = f"Scraping terminé pour {source_name}. {new_count} nouvelles offres ajoutées."

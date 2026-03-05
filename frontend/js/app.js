@@ -22,7 +22,10 @@ document.addEventListener('DOMContentLoaded', () => {
     initModal();
     initFavFilters();
     initTimelineControls();
-    loadTechStats(true); // Background preloading of stats for instant access
+    // Background preloading of stats for instant access, staggered to avoid competing with initial offers load
+    setTimeout(() => {
+        loadTechStats(true);
+    }, 1000);
 
     const btnScrape = document.getElementById('btnScrape');
     if (btnScrape) btnScrape.addEventListener('click', handleScrape);
@@ -160,6 +163,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     document.getElementById('contentStats').classList.remove('hidden');
                     if (sidebar) sidebar.classList.add('hidden');
                     if (sidebarToggleBtn) sidebarToggleBtn.style.display = 'none';
+                    // If not already cached or preloading, this will show skeletons
                     loadTechStats(false, false);
                 } else if (tab === 'favorites') {
                     document.getElementById('contentFavorites').classList.remove('hidden');

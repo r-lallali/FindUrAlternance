@@ -690,62 +690,43 @@ async def get_timeline_stats(
     scale: str = Query("month", enum=["year", "month", "week", "day"]),
     db: Session = Depends(get_db)
 ):
-    """Get offer counts grouped by month, week, or day for the timeline chart."""
+    """Get offer counts grouped by period for the timeline chart. Optimized for speed and historical data."""
     try:
-        base_query = _base_query(db)
-        # Filter only last 5 years for week scale, 10 years for month, 6 months for day
-        if scale == "year":
-            days_back = 365 * 20
-        elif scale == "month":
-            days_back = 365 * 10
-        elif scale == "week":
-            days_back = 365 * 2
-        else:
-            days_back = 180
-            
+        # Scale mapping: how far back to look
+        days_map = {
+            "year": 365 * 10,  # 10 years for annual view
+            "month": 365 * 5,   # 5 years for monthly view
+            "week": 365 * 1,    # 1 year for weekly view
+            "day": 90           # 3 months for daily view
+        }
+        days_back = days_map.get(scale, 90)
         cutoff = datetime.utcnow() - timedelta(days=days_back)
+
+        # We don't use _base_query here because it's limited to 90 days.
+        # This allows the timeline to show historical trends.
+        query = db.query(Offer).filter(
+            Offer.is_school == False,
+            Offer.is_alternance == True,
+            Offer.publication_date >= cutoff
+        )
 
         engine_dialect = db.get_bind().dialect.name
         if engine_dialect == "sqlite":
-            if scale == "year":
-                group_expr = func.strftime('%Y', Offer.publication_date)
-            elif scale == "week":
-                group_expr = func.strftime('%Y-%W', Offer.publication_date)
-            elif scale == "day":
-                group_expr = func.strftime('%Y-%m-%d', Offer.publication_date)
-            else:
-                group_expr = func.strftime('%Y-%m', Offer.publication_date)
+            fmt = {'year': '%Y', 'week': '%Y-%W', 'day': '%Y-%m-%d'}.get(scale, '%Y-%m')
+            group_expr = func.strftime(fmt, Offer.publication_date)
         else:
             # Postgres
-            if scale == "year":
-                group_expr = func.to_char(Offer.publication_date, 'YYYY')
-            elif scale == "week":
-                # ISO week grouping
-                group_expr = func.to_char(Offer.publication_date, 'IYYY-IW')
-            elif scale == "day":
-                group_expr = func.to_char(Offer.publication_date, 'YYYY-MM-DD')
-            else:
-                group_expr = func.to_char(Offer.publication_date, 'YYYY-MM')
+            fmt = {'year': 'YYYY', 'week': 'IYYY-IW', 'day': 'YYYY-MM-DD'}.get(scale, 'YYYY-MM')
+            group_expr = func.to_char(Offer.publication_date, fmt)
 
-        results = (
-            base_query
-            .with_entities(
-                group_expr.label("period"),
-                func.count(Offer.id).label("count"),
-            )
-            .filter(
-                Offer.publication_date.isnot(None),
-                Offer.publication_date >= cutoff,
-            )
-            .group_by(group_expr)
-            .order_by(group_expr)
-            .all()
-        )
+        results = query.with_entities(
+            group_expr.label("period"),
+            func.count(Offer.id).label("count")
+        ).group_by(group_expr).order_by(group_expr).all()
 
-        return [{"period": row.period, "count": row.count} for row in results]
+        return [{"period": r.period, "count": r.count} for r in results if r.period]
     except Exception as e:
-        print(f"DEBUG: Error in get_timeline_stats: {e}")
-        # Return empty data instead of 500 to keep UI clean
+        print(f"Error in get_timeline_stats: {e}")
         return []
 
 

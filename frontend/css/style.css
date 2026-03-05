@@ -1669,7 +1669,7 @@ a:hover {
         width: 100%;
         background: var(--bg-secondary);
         border-top: 1px solid var(--border);
-        padding: 8px 10px calc(8px + env(safe-area-inset-bottom, 0px)) 10px;
+        padding: 8px calc(15px + env(safe-area-inset-right, 0px)) calc(8px + env(safe-area-inset-bottom, 0px)) calc(15px + env(safe-area-inset-left, 0px));
         z-index: 1000;
         margin: 0;
         justify-content: space-around;

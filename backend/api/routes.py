@@ -6,7 +6,8 @@ from datetime import datetime, timedelta
 from typing import Optional
 from fastapi import APIRouter, Depends, Query, HTTPException, status, BackgroundTasks
 from sqlalchemy.orm import Session
-from sqlalchemy import func, or_, desc
+from sqlalchemy import func, or_, desc, cast
+from sqlalchemy.dialects.postgresql import JSONB
 
 from database import get_db
 from models import Offer, User, Favorite
@@ -495,7 +496,6 @@ async def get_filter_options(
 
 def _aggregate_technologies(query) -> list[str]:
     """Aggregate technologies directly in the database using PostgreSQL JSON functions."""
-    from sqlalchemy.dialects.postgresql import JSONB, cast
     
     # We use a subquery/cross-join pattern to unnest the JSONB array
     stmt = query.with_entities(
@@ -600,7 +600,6 @@ async def get_tech_stats(
 
     total_offers = base_query.count()
 
-    from sqlalchemy.dialects.postgresql import JSONB, cast
     
     def get_json_counts(field, limit=15):
         try:

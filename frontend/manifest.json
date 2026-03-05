@@ -1,0 +1,17 @@
+{
+    "name": "Find Ur Alternance",
+    "short_name": "FUA",
+    "description": "Plateforme centralisée de recherche d'offres en alternance",
+    "start_url": "/",
+    "display": "standalone",
+    "background_color": "#111111",
+    "theme_color": "#111111",
+    "icons": [
+        {
+            "src": "img/logo-inv.png",
+            "sizes": "192x192 256x256 512x512",
+            "type": "image/png",
+            "purpose": "any maskable"
+        }
+    ]
+}

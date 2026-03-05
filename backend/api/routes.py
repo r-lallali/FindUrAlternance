@@ -6,7 +6,8 @@ from datetime import datetime, timedelta
 from typing import Optional
 from fastapi import APIRouter, Depends, Query, HTTPException, status, BackgroundTasks
 from sqlalchemy.orm import Session
-from sqlalchemy import func, or_, desc
+from sqlalchemy import func, or_, desc, cast
+from sqlalchemy.dialects.postgresql import JSONB
 
 from database import get_db
 from models import Offer, User, Favorite
@@ -494,18 +495,19 @@ async def get_filter_options(
 
 
 def _aggregate_technologies(query) -> list[str]:
-    counter = Counter()
-    results = query.with_entities(Offer.skills_all).filter(
-        Offer.skills_all.isnot(None), Offer.skills_all != "[]"
-    ).all()
-    for (skills_json,) in results:
-        try:
-            skills = json.loads(skills_json)
-            if isinstance(skills, list):
-                counter.update(skills)
-        except (json.JSONDecodeError, TypeError):
-            pass
-    return [tech for tech, _ in counter.most_common(50)]
+    """Aggregate technologies directly in the database using PostgreSQL JSON functions."""
+    
+    # We use a subquery/cross-join pattern to unnest the JSONB array
+    stmt = query.with_entities(
+        func.jsonb_array_elements_text(cast(Offer.skills_all, JSONB)).label("tech")
+    ).subquery()
+    
+    results = query.session.query(stmt.c.tech, func.count())\
+        .group_by(stmt.c.tech)\
+        .order_by(desc(func.count()))\
+        .limit(50).all()
+        
+    return [r[0] for r in results]
 
 
 @router.get("/stats")
@@ -524,7 +526,37 @@ async def get_stats(
             )
         )
 
-    total_offers = base_query.count()
+    # Single query for all counts to reduce roundtrips
+    now = datetime.utcnow()
+    counts = base_query.with_entities(
+        func.count(Offer.id),
+        func.count(Offer.id).filter(Offer.publication_date >= now - timedelta(hours=24)),
+        func.count(Offer.id).filter(Offer.skills_all.isnot(None), Offer.skills_all != "[]"),
+        # Education counts using filter
+        func.count(Offer.id).filter(or_(
+            Offer.profile.ilike("%bac+2%"), Offer.description.ilike("%bac+2%"), Offer.description.ilike("%bac + 2%"),
+            Offer.description.ilike("%bts%"), Offer.description.ilike("%dut%"),
+            Offer.title.ilike("%bac+2%"), Offer.title.ilike("%bac + 2%"), Offer.title.ilike("%bts%"), Offer.title.ilike("%dut%")
+        )),
+        func.count(Offer.id).filter(or_(
+            Offer.profile.ilike("%bac+3%"), Offer.description.ilike("%bac+3%"), Offer.description.ilike("%bac + 3%"),
+            Offer.description.ilike("%licence%"), Offer.description.ilike("%bachelor%"),
+            Offer.title.ilike("%bac+3%"), Offer.title.ilike("%bac + 3%"), Offer.title.ilike("%licence%"), Offer.title.ilike("%bachelor%")
+        )),
+        func.count(Offer.id).filter(or_(
+            Offer.profile.ilike("%bac+4%"), Offer.description.ilike("%bac+4%"), Offer.description.ilike("%bac + 4%"),
+            Offer.description.ilike("%m1%"), Offer.description.ilike("%maîtrise%"),
+            Offer.title.ilike("%bac+4%"), Offer.title.ilike("%bac + 4%"), Offer.title.ilike("%m1%")
+        )),
+        func.count(Offer.id).filter(or_(
+            Offer.profile.ilike("%bac+5%"), Offer.profile.ilike("%master%"), Offer.profile.ilike("%m2%"), Offer.profile.ilike("%ingénieur%"),
+            Offer.description.ilike("%bac+5%"), Offer.description.ilike("%bac + 5%"), Offer.description.ilike("%master%"),
+            Offer.description.ilike("%m2%"), Offer.description.ilike("%ingénieur%"),
+            Offer.title.ilike("%bac+5%"), Offer.title.ilike("%bac + 5%"), Offer.title.ilike("%master%"), Offer.title.ilike("%m2%"), Offer.title.ilike("%ingénieur%")
+        ))
+    ).first()
+
+    (total_offers, recent, it_offers, bac2_offers, bac3_offers, bac4_offers, bac5_offers) = counts or (0,0,0,0,0,0,0)
 
     by_source = dict(
         base_query.with_entities(Offer.source, func.count(Offer.id))
@@ -537,73 +569,6 @@ async def get_stats(
         .order_by(desc(func.count(Offer.id)))
         .limit(10).all()
     )
-    recent = base_query.filter(
-        Offer.publication_date >= datetime.utcnow() - timedelta(hours=24)
-    ).count()
-    it_offers = base_query.filter(
-        Offer.skills_all.isnot(None),
-        Offer.skills_all != "[]",
-    ).count()
-
-    bac2_offers = base_query.filter(
-        or_(
-            Offer.profile.ilike("%bac+2%"),
-            Offer.description.ilike("%bac+2%"),
-            Offer.description.ilike("%bac + 2%"),
-            Offer.description.ilike("%bts%"),
-            Offer.description.ilike("%dut%"),
-            Offer.title.ilike("%bac+2%"),
-            Offer.title.ilike("%bac + 2%"),
-            Offer.title.ilike("%bts%"),
-            Offer.title.ilike("%dut%")
-        )
-    ).count()
-
-    bac3_offers = base_query.filter(
-        or_(
-            Offer.profile.ilike("%bac+3%"),
-            Offer.description.ilike("%bac+3%"),
-            Offer.description.ilike("%bac + 3%"),
-            Offer.description.ilike("%licence%"),
-            Offer.description.ilike("%bachelor%"),
-            Offer.title.ilike("%bac+3%"),
-            Offer.title.ilike("%bac + 3%"),
-            Offer.title.ilike("%licence%"),
-            Offer.title.ilike("%bachelor%")
-        )
-    ).count()
-
-    bac4_offers = base_query.filter(
-        or_(
-            Offer.profile.ilike("%bac+4%"),
-            Offer.description.ilike("%bac+4%"),
-            Offer.description.ilike("%bac + 4%"),
-            Offer.description.ilike("%m1%"),
-            Offer.description.ilike("%maîtrise%"),
-            Offer.title.ilike("%bac+4%"),
-            Offer.title.ilike("%bac + 4%"),
-            Offer.title.ilike("%m1%")
-        )
-    ).count()
-
-    bac5_offers = base_query.filter(
-        or_(
-            Offer.profile.ilike("%bac+5%"),
-            Offer.profile.ilike("%master%"),
-            Offer.profile.ilike("%m2%"),
-            Offer.profile.ilike("%ingénieur%"),
-            Offer.description.ilike("%bac+5%"),
-            Offer.description.ilike("%bac + 5%"),
-            Offer.description.ilike("%master%"),
-            Offer.description.ilike("%m2%"),
-            Offer.description.ilike("%ingénieur%"),
-            Offer.title.ilike("%bac+5%"),
-            Offer.title.ilike("%bac + 5%"),
-            Offer.title.ilike("%master%"),
-            Offer.title.ilike("%m2%"),
-            Offer.title.ilike("%ingénieur%")
-        )
-    ).count()
 
     return {
         "total_offers": total_offers,
@@ -636,37 +601,30 @@ async def get_tech_stats(
 
     total_offers = base_query.count()
 
-    lang_counter = Counter()
-    fw_counter = Counter()
-    tool_counter = Counter()
-    cert_counter = Counter()
-    method_counter = Counter()
+    def get_json_counts(field, limit=15):
+        try:
+            stmt = base_query.with_entities(
+                func.jsonb_array_elements_text(cast(field, JSONB)).label("item")
+            ).subquery()
+            
+            return [{"name": r[0], "count": r[1]} for r in db.query(stmt.c.item, func.count())
+                    .group_by(stmt.c.item)
+                    .order_by(desc(func.count()))
+                    .limit(limit).all()]
+        except Exception:
+            return []
 
-    results = base_query.with_entities(
-        Offer.skills_languages,
-        Offer.skills_frameworks,
-        Offer.skills_tools,
-        Offer.skills_certifications,
-        Offer.skills_methodologies,
-    ).all()
-
-    total_it = len(results)
-
-    for langs, fws, tools, certs, methods in results:
-        for data, counter in [
-            (langs, lang_counter),
-            (fws, fw_counter),
-            (tools, tool_counter),
-            (certs, cert_counter),
-            (methods, method_counter),
-        ]:
-            if data:
-                try:
-                    items = json.loads(data)
-                    if isinstance(items, list):
-                        counter.update(items)
-                except (json.JSONDecodeError, TypeError):
-                    pass
+    top_languages = get_json_counts(Offer.skills_languages)
+    top_frameworks = get_json_counts(Offer.skills_frameworks)
+    top_tools = get_json_counts(Offer.skills_tools)
+    top_certifications = get_json_counts(Offer.skills_certifications)
+    top_methodologies = get_json_counts(Offer.skills_methodologies)
+    
+    # Global IT count
+    total_it = base_query.filter(
+        Offer.skills_all.isnot(None), 
+        Offer.skills_all != "[]"
+    ).count()
 
     # Step 1: Get the top company names based on the company field
     raw_top_companies = base_query.with_entities(func.trim(Offer.company))\
@@ -676,9 +634,13 @@ async def get_tech_stats(
         .limit(15).all()
     
     # Step 2: Compute broad counts (matching keyword search) for each of these companies
+    # To optimize this, we'll combine them into a single query if possible, 
+    # but for now let's at least keep it separate from the IT processing.
     top_companies = []
-    for (name,) in raw_top_companies:
-        # Use the same logic as keyword search for consistency
+    company_names = [r[0] for r in raw_top_companies]
+    
+    # Still doing it one by one for now but it's much faster than IT processing
+    for name in company_names:
         name_filter = f"%{name}%"
         count = base_query.filter(
             or_(
@@ -688,7 +650,7 @@ async def get_tech_stats(
             )
         ).count()
         top_companies.append({"name": name, "count": count})
-    # Sort again because broad counts might change the order
+    
     top_companies.sort(key=lambda x: x["count"], reverse=True)
 
     top_departments_query = base_query.with_entities(func.trim(Offer.department), func.count(Offer.id))\
@@ -703,18 +665,15 @@ async def get_tech_stats(
         .order_by(desc(func.count(Offer.id)))\
         .limit(10).all()
 
-    def to_list(counter: Counter, limit: int = 15) -> list[dict]:
-        return [{"name": name, "count": count} for name, count in counter.most_common(limit)]
-    
     def format_query(q) -> list[dict]:
         return [{"name": str(name), "count": count} for name, count in q]
 
     return TechStats(
-        top_languages=to_list(lang_counter),
-        top_frameworks=to_list(fw_counter),
-        top_tools=to_list(tool_counter),
-        top_certifications=to_list(cert_counter),
-        top_methodologies=to_list(method_counter),
+        top_languages=top_languages,
+        top_frameworks=top_frameworks,
+        top_tools=top_tools,
+        top_certifications=top_certifications,
+        top_methodologies=top_methodologies,
         total_it_offers=total_it,
         total_offers=total_offers,
         top_departments=format_query(top_departments_query),

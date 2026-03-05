@@ -149,7 +149,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     document.getElementById('contentStats').classList.remove('hidden');
                     if (sidebar) sidebar.classList.add('hidden');
                     if (sidebarToggleBtn) sidebarToggleBtn.style.display = 'none';
-                    loadTechStats();
+                    loadTechStats(false, true);
                 } else if (tab === 'favorites') {
                     document.getElementById('contentFavorites').classList.remove('hidden');
                     if (sidebar) sidebar.classList.add('hidden');
@@ -258,7 +258,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 loadOffers();
                 const activeTab = document.querySelector('.tab-btn.active')?.dataset.tab;
                 if (activeTab === 'stats') {
-                    loadTechStats();
+                    loadTechStats(false, true);
                 } else if (activeTab === 'favorites') {
                     loadFavorites();
                 }
@@ -427,10 +427,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // ===== TECH STATISTICS =====
 
-    async function loadTechStats(silent = false) {
+    async function loadTechStats(silent = false, force = false) {
         try {
-            if (!cachedTechStats) cachedTechStats = await API.getTechStats();
-            if (!cachedGeneralStats) cachedGeneralStats = await API.getStats();
+            if (force || !cachedTechStats) {
+                cachedTechStats = await API.getTechStats();
+            }
+            if (force || !cachedGeneralStats) {
+                cachedGeneralStats = await API.getStats();
+            }
 
             const stats = cachedTechStats;
             const generalStats = cachedGeneralStats;

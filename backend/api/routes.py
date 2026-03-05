@@ -199,10 +199,12 @@ async def remove_favorite(
 # ═══════════════════════════════════════════════════════
 
 def _base_query(db: Session):
-    """Base query: exclude school offers and non-alternance CDD."""
+    """Base query: exclude school offers, non-alternance, and older than 90 days."""
+    three_months_ago = datetime.utcnow() - timedelta(days=90)
     return db.query(Offer).filter(
         Offer.is_school == False,  # noqa: E712
-        Offer.is_alternance == True   # noqa: E712
+        Offer.is_alternance == True,   # noqa: E712
+        Offer.publication_date >= three_months_ago
     )
 
 
@@ -231,12 +233,6 @@ async def get_offers(
     """Get paginated and filtered offers."""
     query = _base_query(db)
 
-    # Auto-expire: only show offers from the last 3 months
-    three_months_ago = datetime.utcnow() - timedelta(days=90)
-    query = query.filter(
-        Offer.publication_date >= three_months_ago
-    )
-
     # Exclude offers favorited by the current user
     if user:
         query = query.filter(
@@ -255,7 +251,7 @@ async def get_offers(
             )
         )
     if category:
-        query = query.filter(Offer.category.ilike(f"%{category}%"))
+        query = query.filter(Offer.category == category)
     if company:
         query = query.filter(Offer.company == company)
     if location:
@@ -428,8 +424,7 @@ async def get_offer(
 @router.get("/filters", response_model=FilterOptions)
 async def get_filter_options(db: Session = Depends(get_db)):
     """Get available filter options based on current data."""
-    three_months_ago = datetime.utcnow() - timedelta(days=90)
-    base_query = _base_query(db).filter(Offer.publication_date >= three_months_ago)
+    base_query = _base_query(db)
 
     categories = [
         r[0] for r in base_query.with_entities(Offer.category)
@@ -491,8 +486,7 @@ def _aggregate_technologies(query) -> list[str]:
 @router.get("/stats")
 async def get_stats(db: Session = Depends(get_db)):
     """Get dashboard statistics."""
-    three_months_ago = datetime.utcnow() - timedelta(days=90)
-    base_query = _base_query(db).filter(Offer.publication_date >= three_months_ago)
+    base_query = _base_query(db)
     total_offers = base_query.count()
 
     by_source = dict(
@@ -587,8 +581,7 @@ async def get_stats(db: Session = Depends(get_db)):
 @router.get("/stats/tech", response_model=TechStats)
 async def get_tech_stats(db: Session = Depends(get_db)):
     """Get detailed technology statistics."""
-    three_months_ago = datetime.utcnow() - timedelta(days=90)
-    base_query = _base_query(db).filter(Offer.publication_date >= three_months_ago)
+    base_query = _base_query(db)
     total_offers = base_query.count()
 
     lang_counter = Counter()
@@ -629,7 +622,6 @@ async def get_tech_stats(db: Session = Depends(get_db)):
     # Compute additional interesting global stats for cards
     top_companies_query = base_query.with_entities(Offer.company, func.count(Offer.id))\
         .filter(Offer.company.isnot(None), Offer.company != "")\
-        .filter(Offer.company.notilike("%confidentiel%"))\
         .group_by(Offer.company)\
         .order_by(desc(func.count(Offer.id)))\
         .limit(15).all()
@@ -642,8 +634,6 @@ async def get_tech_stats(db: Session = Depends(get_db)):
 
     top_categories_query = base_query.with_entities(Offer.category, func.count(Offer.id))\
         .filter(Offer.category.isnot(None), Offer.category != "")\
-        .filter(Offer.category.notilike("%autre%"))\
-        .filter(Offer.category.notin_(["Développement, IT", "Technologies de l'Information"]))\
         .group_by(Offer.category)\
         .order_by(desc(func.count(Offer.id)))\
         .limit(10).all()

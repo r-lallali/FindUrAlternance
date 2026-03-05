@@ -1,6 +1,7 @@
 """API routes for the alternance dashboard."""
 
 import json
+import asyncio
 from collections import Counter
 from datetime import datetime, timedelta
 from typing import Optional
@@ -687,9 +688,49 @@ async def get_tech_stats(
     )
 
 
-# Simple in-memory cache for timeline
+# Simple in-memory cache for dashboard
+DASHBOARD_CACHE = {}
+DASHBOARD_CACHE_TIME = {}
 TIMELINE_CACHE = {}
 TIMELINE_CACHE_TIME = {}
+
+
+@router.get("/stats/dashboard")
+async def get_dashboard_stats(
+    user: Optional[User] = Depends(get_optional_user),
+    db: Session = Depends(get_db)
+):
+    """Consolidated dashboard stats with high-performance caching."""
+    # Use a simpler cache key for the general dashboard (shared across users for preloading)
+    cache_key = "default"
+    now = datetime.utcnow()
+    
+    if cache_key in DASHBOARD_CACHE and (now - DASHBOARD_CACHE_TIME.get(cache_key, now)).total_seconds() < 300:
+        return DASHBOARD_CACHE[cache_key]
+
+    # If not cached, compute everything in parallel
+    try:
+        # 1. Tech, Basic and Timeline Stats computed concurrently
+        tech_task = get_tech_stats(user=None, db=db)
+        general_task = get_stats(db=db)
+        timeline_task = get_timeline_stats(scale="month", db=db)
+        
+        tech_data, general_data, timeline_data = await asyncio.gather(
+            tech_task, general_task, timeline_task
+        )
+        
+        result = {
+            "tech": tech_data,
+            "general": general_data,
+            "timeline": timeline_data
+        }
+        
+        DASHBOARD_CACHE[cache_key] = result
+        DASHBOARD_CACHE_TIME[cache_key] = now
+        return result
+    except Exception as e:
+        print(f"Error in dashboard stats: {e}")
+        return {"error": str(e)}
 
 @router.get("/stats/timeline")
 async def get_timeline_stats(

@@ -128,13 +128,26 @@ document.addEventListener('DOMContentLoaded', () => {
         const tabBtns = document.querySelectorAll('.tab-btn');
         tabBtns.forEach((btn) => {
             btn.addEventListener('click', () => {
+                if (btn.classList.contains('active')) return; // Avoid re-triggering if already on this tab
+
                 tabBtns.forEach((b) => b.classList.remove('active'));
                 btn.classList.add('active');
 
                 const tab = btn.dataset.tab;
-                document.getElementById('contentOffers').classList.add('hidden');
-                document.getElementById('contentStats').classList.add('hidden');
-                document.getElementById('contentFavorites').classList.add('hidden');
+                const tabs = {
+                    'offers': document.getElementById('contentOffers'),
+                    'stats': document.getElementById('contentStats'),
+                    'favorites': document.getElementById('contentFavorites')
+                };
+
+                // Hide all except current selection - Avoids the "hide then show" flicker
+                Object.keys(tabs).forEach(k => {
+                    if (k === tab) {
+                        tabs[k].classList.remove('hidden');
+                    } else {
+                        tabs[k].classList.add('hidden');
+                    }
+                });
 
                 const sidebar = document.querySelector('.sidebar');
                 const sidebarToggleBtn = document.getElementById('sidebarToggle');
@@ -441,6 +454,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const stats = cachedTechStats;
             const generalStats = cachedGeneralStats;
+
+            // Only render if the statistics tab is actually visible to avoid double animation/flicker
+            if (document.getElementById('contentStats').classList.contains('hidden') && silent) {
+                return;
+            }
 
 
             // Load timeline chart

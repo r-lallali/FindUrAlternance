@@ -665,7 +665,7 @@ a:hover {
 }
 
 .content.content-stats {
-    animation: none;
+    animation: none !important;
     /* We use staggered panel animations instead */
 }
 
@@ -1374,7 +1374,7 @@ a:hover {
     border: 1px solid var(--border);
     border-radius: var(--radius-sm);
     padding: 20px;
-    transition: border-color var(--transition-fast), background var(--transition-normal), transform var(--transition-normal);
+    transition: border-color var(--transition-fast), background var(--transition-normal);
     opacity: 0;
     transform: translateY(10px);
 }

@@ -11,6 +11,7 @@ const Filters = (() => {
         location: '',
         department: '',
         category: '',
+        company: '',
         profile: '',
         source: '',
         date_filter: '',
@@ -202,6 +203,7 @@ const Filters = (() => {
             location: '',
             department: '',
             category: '',
+            company: '',
             profile: '',
             source: '',
             date_filter: '',
@@ -284,6 +286,7 @@ const Filters = (() => {
             source: 'filterSource',
             location: 'filterLocation',
             keyword: 'searchInput',
+            company: '', // No specific UI for company in sidebar yet
         };
         const elId = uiMapping[key];
         if (elId) {

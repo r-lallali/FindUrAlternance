@@ -212,6 +212,7 @@ async def get_offers(
     per_page: int = Query(20, ge=1, le=100),
     keyword: Optional[str] = Query(None),
     category: Optional[str] = Query(None),
+    company: Optional[str] = Query(None),
     location: Optional[str] = Query(None),
     department: Optional[str] = Query(None),
     contract_type: Optional[str] = Query(None),
@@ -255,6 +256,8 @@ async def get_offers(
         )
     if category:
         query = query.filter(Offer.category.ilike(f"%{category}%"))
+    if company:
+        query = query.filter(Offer.company == company)
     if location:
         from scrapers.utils import extract_department
         dept_match = extract_department(location)
@@ -425,7 +428,8 @@ async def get_offer(
 @router.get("/filters", response_model=FilterOptions)
 async def get_filter_options(db: Session = Depends(get_db)):
     """Get available filter options based on current data."""
-    base_query = _base_query(db)
+    three_months_ago = datetime.utcnow() - timedelta(days=90)
+    base_query = _base_query(db).filter(Offer.publication_date >= three_months_ago)
 
     categories = [
         r[0] for r in base_query.with_entities(Offer.category)
@@ -487,7 +491,8 @@ def _aggregate_technologies(query) -> list[str]:
 @router.get("/stats")
 async def get_stats(db: Session = Depends(get_db)):
     """Get dashboard statistics."""
-    base_query = _base_query(db)
+    three_months_ago = datetime.utcnow() - timedelta(days=90)
+    base_query = _base_query(db).filter(Offer.publication_date >= three_months_ago)
     total_offers = base_query.count()
 
     by_source = dict(
@@ -582,7 +587,8 @@ async def get_stats(db: Session = Depends(get_db)):
 @router.get("/stats/tech", response_model=TechStats)
 async def get_tech_stats(db: Session = Depends(get_db)):
     """Get detailed technology statistics."""
-    base_query = _base_query(db)
+    three_months_ago = datetime.utcnow() - timedelta(days=90)
+    base_query = _base_query(db).filter(Offer.publication_date >= three_months_ago)
     total_offers = base_query.count()
 
     lang_counter = Counter()

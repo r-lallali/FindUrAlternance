@@ -439,7 +439,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // Load timeline chart
             loadTimelineChart(silent);
 
-            renderBarChart('chartCompanies', stats.top_companies, 'fw', 'keyword');
+            renderBarChart('chartCompanies', stats.top_companies, 'fw', 'company');
             renderBarChart('chartDepartments', stats.top_departments, 'tool', 'department');
             renderBarChart('chartCategories', stats.top_categories, 'method', 'category');
             renderBarChart('chartLanguages', stats.top_languages, 'lang', 'technology');

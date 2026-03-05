@@ -127,7 +127,6 @@ const Filters = (() => {
         const names = {
             labonnealternance: 'La Bonne Alternance',
             francetravail: 'France Travail',
-
             linkedin: 'LinkedIn',
             hellowork: 'HelloWork',
             wttj: 'Welcome to the Jungle',

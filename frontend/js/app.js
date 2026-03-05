@@ -1007,7 +1007,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <div class="stats-bar-row clickable" data-filter-type="${filterType || ''}" data-filter-value="${escapeHtml(filterValue)}" title="Voir les offres : ${escapeHtml(item.name)}">
                     <span class="stats-bar-name" title="${escapeHtml(item.name)}">${escapeHtml(item.name)}</span>
                     <div class="stats-bar-track">
-                        <div class="stats-bar-fill ${cssClass}" style="width: 0%" data-target="${pct}"></div>
+                        <div class="stats-bar-fill ${cssClass}" style="width: ${pct}%"></div>
                     </div>
                     <span class="stats-bar-count">${item.count}</span>
                 </div>`;
@@ -1024,13 +1024,7 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         });
 
-        requestAnimationFrame(() => {
-            setTimeout(() => {
-                container.querySelectorAll('.stats-bar-fill').forEach((bar) => {
-                    bar.style.width = bar.dataset.target + '%';
-                });
-            }, 50);
-        });
+
     }
 
     /**

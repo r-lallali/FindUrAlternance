@@ -80,9 +80,9 @@ PROGRAMMING_LANGUAGES = {
     # Key: canonical name, Value: list of variations / regex patterns
     # Use \b word boundaries to avoid false positives in French text
     "Python": ["\\bpython\\b"],
-    "JavaScript": ["\\bjavascript\\b", "\\bjs\\b"],
+    "JavaScript": ["\\bjavascript\\b", "\\bjs\\b", "\\bjava[\\s-]*script\\b"],
     "TypeScript": ["\\btypescript\\b"],
-    "Java": ["\\bjava\\b(?!script)"],
+    "Java": ["\\bjava\\b(?![\\s\\-/]*script)"],
     "C#": ["\\bc#", "\\bc sharp\\b", "\\bcsharp\\b"],
     "C++": ["\\bc\\+\\+", "\\bcpp\\b"],
     "C": ["\\blangage c\\b", "\\bprogrammation c\\b"],
@@ -369,15 +369,35 @@ def extract_skills(title: str, description: Optional[str] = None) -> Dict[str, L
     """
     text = f"{title or ''} {description or ''}".lower()
 
-    result = {
-        "languages": _extract_from_dict(text, PROGRAMMING_LANGUAGES),
-        "frameworks": _extract_from_dict(text, FRAMEWORKS_LIBRARIES),
-        "tools": _extract_from_dict(text, TOOLS_PLATFORMS),
-        "certifications": _extract_from_dict(text, CERTIFICATIONS),
-        "methodologies": _extract_from_dict(text, METHODOLOGIES),
-    }
+    languages = _extract_from_dict(text, PROGRAMMING_LANGUAGES)
+    frameworks = _extract_from_dict(text, FRAMEWORKS_LIBRARIES)
+    tools = _extract_from_dict(text, TOOLS_PLATFORMS)
+    certifications = _extract_from_dict(text, CERTIFICATIONS)
+    methodologies = _extract_from_dict(text, METHODOLOGIES)
 
-    return result
+    # Post-processing: Handle Java vs JavaScript false positives
+    # If both Java and (JS or TS) are found, check if it's really a Java job
+    if "Java" in languages and ("JavaScript" in languages or "TypeScript" in languages):
+        # List of indicators that it's likely a real Java job
+        java_indicators = ["Spring", "Hibernate", "JUnit", "Maven", "Gradle", "IntelliJ", "J2EE", "JEE", "Quarkus"]
+        has_java_indicator = any(ind in frameworks or ind in tools for ind in java_indicators)
+        
+        # Check if "Java" (standalone) appears in the original text (title or description)
+        # We look for "java" NOT followed by "script" (with optional space/dash)
+        has_standalone_java = re.search(r'\bjava\b(?![ \-/]*script)', text, re.IGNORECASE) is not None
+        
+        # If it doesn't have Java-specific frameworks/tools AND doesn't even have a standalone "Java" 
+        # (meaning all "Java" matches were actually parts of "Java Script"), then remove it.
+        if not has_java_indicator and not has_standalone_java:
+            languages.remove("Java")
+
+    return {
+        "languages": languages,
+        "frameworks": frameworks,
+        "tools": tools,
+        "certifications": certifications,
+        "methodologies": methodologies,
+    }
 
 
 def extract_skills_flat(title: str, description: Optional[str] = None) -> List[str]:

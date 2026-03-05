@@ -455,10 +455,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const stats = cachedTechStats;
             const generalStats = cachedGeneralStats;
 
-            // Only render if the statistics tab is actually visible to avoid double animation/flicker
-            if (document.getElementById('contentStats').classList.contains('hidden') && silent) {
-                return;
-            }
+
 
 
             // Load timeline chart

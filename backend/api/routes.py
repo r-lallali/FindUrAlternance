@@ -588,7 +588,7 @@ async def get_tech_stats(
     user: Optional[User] = Depends(get_optional_user),
     db: Session = Depends(get_db)
 ):
-    """Get detailed technology statistics with simplified, fast queries."""
+    """Get detailed technology statistics with accuracy and performance."""
     base_query = _base_query(db)
 
     if user:
@@ -598,15 +598,18 @@ async def get_tech_stats(
             )
         )
 
-    # 1. Fetch ALL skill data in a single query (MUCH faster than multiple subqueries for 3k-10k rows)
+    # 1. Fetch skill data and compute IT count accurately
+    # We fetch only rows that HAVE skills to be faster and accurate
     results = base_query.with_entities(
         Offer.skills_languages,
         Offer.skills_frameworks,
         Offer.skills_tools,
         Offer.skills_certifications,
         Offer.skills_methodologies,
-    ).all()
+    ).filter(Offer.skills_all.isnot(None), Offer.skills_all != "[]").all()
 
+    total_it = len(results)
+    
     lang_counter = Counter()
     fw_counter = Counter()
     tool_counter = Counter()
@@ -626,13 +629,30 @@ async def get_tech_stats(
                 except Exception:
                     pass
 
-    # 2. Get top companies, departments and categories in simple group_by queries
-    top_companies_raw = base_query.with_entities(func.trim(Offer.company), func.count(Offer.id))\
+    # 2. Advanced Companies Stats (Broad search to match search results)
+    # We first find the most frequent names in the 'company' field
+    raw_top_companies = base_query.with_entities(func.trim(Offer.company))\
         .filter(Offer.company.isnot(None), Offer.company != "")\
         .group_by(func.trim(Offer.company))\
         .order_by(desc(func.count(Offer.id)))\
         .limit(15).all()
+    
+    top_companies = []
+    for (name,) in raw_top_companies:
+        # Broad count including mentions in title/desc (matches user search experience)
+        name_filter = f"%{name}%"
+        count = base_query.filter(
+            or_(
+                Offer.company.ilike(name_filter),
+                Offer.title.ilike(name_filter),
+                Offer.description.ilike(name_filter)
+            )
+        ).count()
+        top_companies.append({"name": name, "count": count})
+    
+    top_companies.sort(key=lambda x: x["count"], reverse=True)
 
+    # 3. Simple group_by for departments and categories
     top_departments_raw = base_query.with_entities(func.trim(Offer.department), func.count(Offer.id))\
         .filter(Offer.department.isnot(None), Offer.department != "")\
         .group_by(func.trim(Offer.department))\
@@ -657,10 +677,10 @@ async def get_tech_stats(
         top_tools=format_list(tool_counter),
         top_certifications=format_list(cert_counter),
         top_methodologies=format_list(method_counter),
-        total_it_offers=len(results),
+        total_it_offers=total_it,
         total_offers=base_query.count(),
         top_departments=format_query_results(top_departments_raw),
-        top_companies=format_query_results(top_companies_raw),
+        top_companies=top_companies,
         top_categories=format_query_results(top_categories_raw)
     )
 

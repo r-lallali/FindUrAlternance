@@ -1381,12 +1381,12 @@ a:hover {
 .stats-panel-header {
     display: flex !important;
     flex-direction: row !important;
-    justify-content: center !important;
+    justify-content: space-between !important;
     align-items: center !important;
     gap: 16px !important;
-    margin-bottom: 16px !important;
+    margin-bottom: 20px !important;
     width: 100% !important;
-    flex-wrap: nowrap !important;
+    flex-wrap: wrap !important;
 }
 
 .stats-panel-title {
@@ -1395,9 +1395,10 @@ a:hover {
     color: var(--text-secondary) !important;
     text-transform: uppercase !important;
     letter-spacing: 0.8px !important;
-    margin-bottom: 16px !important;
-    text-align: center !important;
-    width: 100% !important;
+    margin-bottom: 0 !important;
+    text-align: left !important;
+    flex: 1 !important;
+    min-width: 200px !important;
 }
 
 .stats-panel-header .stats-panel-title {
@@ -1670,6 +1671,38 @@ a:hover {
 
     body {
         padding-bottom: 70px;
+    }
+
+    .main {
+        padding: 10px;
+        gap: 12px;
+    }
+
+    .stats-panel {
+        padding: 12px;
+    }
+
+    .stats-panel-header {
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        gap: 12px !important;
+    }
+
+    .stats-panel-title {
+        min-width: 0 !important;
+        width: 100% !important;
+        text-align: center !important;
+    }
+
+    .timeline-controls {
+        width: 100% !important;
+        justify-content: center !important;
+    }
+
+    .btn-scale {
+        padding: 5px 8px !important;
+        font-size: 10px !important;
+        min-width: 0 !important;
     }
 }
 

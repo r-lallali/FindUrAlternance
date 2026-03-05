@@ -697,7 +697,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         let chartPoints = [];
         let canvasW = 0, canvasH = 0;
-        let chartPadding = { top: 20, right: 30, bottom: 40, left: 50 };
+        let chartPadding = window.innerWidth <= 640 ? { top: 20, right: 15, bottom: 35, left: 35 } : { top: 20, right: 30, bottom: 40, left: 50 };
 
         function draw() {
             try {
@@ -712,7 +712,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 const w = canvas.width / dpr;
                 const h = canvas.height / dpr;
-                const padding = { top: 20, right: 30, bottom: 40, left: 50 };
+                const isMobile = window.innerWidth <= 640;
+                const padding = isMobile
+                    ? { top: 20, right: 15, bottom: 35, left: 35 }
+                    : { top: 20, right: 30, bottom: 40, left: 50 };
                 const chartW = w - padding.left - padding.right;
                 const chartH = h - padding.top - padding.bottom;
                 const colors = getThemeColors();

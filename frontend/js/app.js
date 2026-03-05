@@ -139,17 +139,21 @@ document.addEventListener('DOMContentLoaded', () => {
                 document.getElementById('contentFavorites').classList.add('hidden');
 
                 const sidebar = document.querySelector('.sidebar');
+                const sidebarToggleBtn = document.getElementById('sidebarToggle');
 
                 if (tab === 'offers') {
                     document.getElementById('contentOffers').classList.remove('hidden');
                     if (sidebar) sidebar.classList.remove('hidden');
+                    if (sidebarToggleBtn) sidebarToggleBtn.style.display = '';
                 } else if (tab === 'stats') {
                     document.getElementById('contentStats').classList.remove('hidden');
                     if (sidebar) sidebar.classList.add('hidden');
+                    if (sidebarToggleBtn) sidebarToggleBtn.style.display = 'none';
                     loadTechStats();
                 } else if (tab === 'favorites') {
                     document.getElementById('contentFavorites').classList.remove('hidden');
                     if (sidebar) sidebar.classList.add('hidden');
+                    if (sidebarToggleBtn) sidebarToggleBtn.style.display = 'none';
                     loadFavorites();
                 }
 

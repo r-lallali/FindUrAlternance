@@ -1700,12 +1700,17 @@ a:hover {
         padding: 12px 24px;
         border-radius: 30px;
         box-shadow: var(--shadow-lg);
-        background: var(--accent-primary);
-        color: #fff;
+        background: #ffffff;
+        color: #000000;
         z-index: 990;
         border: none;
         font-weight: 600;
         justify-content: center;
+    }
+
+    [data-theme="light"] .sidebar-toggle {
+        background: #000000;
+        color: #ffffff;
     }
 
     body {

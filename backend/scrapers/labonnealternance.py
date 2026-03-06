@@ -185,7 +185,21 @@ class LaBonneAlternanceScraper(BaseScraper):
             if not isinstance(job_data, dict):
                 job_data = {}
 
-            description = job_data.get("description", "")
+            description = job_data.get("description", "").strip()
+
+            # Fallback to ROME definition if description is missing
+            if not description:
+                rome_details = raw_data.get("romeDetails", {})
+                if isinstance(rome_details, dict):
+                    description = rome_details.get("definition", "").strip()
+            
+            # Second fallback: use ROME labels
+            if not description:
+                appellation = job_data.get("rome_appellation_label")
+                rome_label = job_data.get("rome_label")
+                description = appellation or rome_label or ""
+                if description:
+                    description = f"Poste en tant que {description}. (Description détaillée non disponible)"
 
             # School detection
             is_school = is_school_offer(company_name, description)

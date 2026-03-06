@@ -139,10 +139,15 @@ def is_school_offer(company: str, description: Optional[str] = None) -> bool:
     return False
 
 
+import html
+
 def clean_text(text: Optional[str], preserve_newlines: bool = False) -> Optional[str]:
     """Clean and normalize text content."""
     if not text:
         return None
+    
+    # Decode HTML entities (e.g., &eacute; -> é, &#39; -> ')
+    text = html.unescape(text)
     
     if preserve_newlines:
         # Replace common block tags and breaks with newlines

@@ -228,7 +228,7 @@ async def remove_favorite(
 
 def _base_query(db: Session):
     """Base query: exclude school offers, non-alternance, and older than 90 days."""
-    three_months_ago = datetime.utcnow() - timedelta(days=90)
+    three_months_ago = (datetime.utcnow() - timedelta(days=90)).replace(hour=0, minute=0, second=0, microsecond=0)
     return db.query(Offer).filter(
         Offer.is_school == False,  # noqa: E712
         Offer.is_alternance == True,   # noqa: E712
@@ -389,11 +389,11 @@ async def get_offers(
     if date_filter:
         now = datetime.utcnow()
         if date_filter == "today":
-            query = query.filter(Offer.publication_date >= now.replace(hour=0, minute=0, second=0))
+            query = query.filter(Offer.publication_date >= now.replace(hour=0, minute=0, second=0, microsecond=0))
         elif date_filter == "week":
-            query = query.filter(Offer.publication_date >= now - timedelta(days=7))
+            query = query.filter(Offer.publication_date >= (now - timedelta(days=7)).replace(hour=0, minute=0, second=0, microsecond=0))
         elif date_filter == "month":
-            query = query.filter(Offer.publication_date >= now - timedelta(days=30))
+            query = query.filter(Offer.publication_date >= (now - timedelta(days=30)).replace(hour=0, minute=0, second=0, microsecond=0))
     if date_from:
         try:
             query = query.filter(Offer.publication_date >= datetime.strptime(date_from, "%Y-%m-%d"))

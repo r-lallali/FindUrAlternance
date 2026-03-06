@@ -57,10 +57,11 @@ async def startup():
     from api.routes import run_global_scrape
     
     scheduler = AsyncIOScheduler()
-    # Schedule every hour
-    scheduler.add_job(run_global_scrape, 'cron', hour='*')
+    # Schedule 3 times a day (morning, afternoon, evening) with random jitter
+    # This ensures tools like LinkedIn are less likely to hit rate limits while keeping data fresh.
+    scheduler.add_job(run_global_scrape, 'cron', hour='8,14,20', minute=0, jitter=7200)
     scheduler.start()
-    logger.info("Background scheduler started: Scraping scheduled every hour.")
+    logger.info("Background scheduler started: Scraping scheduled 3 times per day (with random jitter).")
 
 
 if __name__ == "__main__":

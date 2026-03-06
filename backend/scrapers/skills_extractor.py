@@ -491,7 +491,7 @@ def categorize_offer(title: str, description: Optional[str] = None) -> str:
     search_text = f"{(title or '').lower()} {(title or '').lower()} {text}"
 
     max_score = 0
-    best_category = "Autre Développement & IT"
+    best_category = "Autre"
 
     for category, patterns in CATEGORIES.items():
         score = 0

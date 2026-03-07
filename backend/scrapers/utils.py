@@ -508,3 +508,30 @@ def parse_french_date(date_text: str) -> Optional[datetime]:
                 pass
 
     return None
+
+def normalize_for_deduplication(text: Optional[str]) -> str:
+    """
+    Normalize text (title or company) for de-duplication purposes.
+    Removes common noise and special characters.
+    """
+    if not text:
+        return ""
+    
+    # Lowercase
+    text = text.lower()
+    
+    # Remove H/F, F/H variations
+    text = re.sub(r'\(h/f\)|h/f|f/h|\(f/h\)', '', text)
+    
+    # Remove common job keywords that vary between sources
+    noise = [
+        "alternance", "apprentissage", "contrat", "apprenti", "apprentie", 
+        "en alternance", "stage", "cdd", "cdi", "offre d'", "offre de"
+    ]
+    for n in noise:
+        text = text.replace(n, "")
+    
+    # Remove non-alphanumeric characters
+    text = re.sub(r'[^a-zA-Z0-9]', '', text)
+    
+    return text.strip()

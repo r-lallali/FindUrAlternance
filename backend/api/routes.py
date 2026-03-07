@@ -857,12 +857,18 @@ async def run_global_scrape():
                     ).first()
                 
                 if not existing:
-                    # Content-based duplicate check
+                    # Content-based duplicate check (Title + Company + Dept)
+                    # Use exact matches for indexed fields to keep it fast
                     existing = bg_db.query(Offer).filter(
                         Offer.title == offer_data.get("title"),
-                        Offer.description == offer_data.get("description"),
-                        Offer.location == offer_data.get("location"),
+                        Offer.company == offer_data.get("company"),
                         Offer.department == offer_data.get("department")
+                    ).first()
+                
+                if not existing and offer_data.get("description"):
+                    # Fallback check on exact description match
+                    existing = bg_db.query(Offer).filter(
+                        Offer.description == offer_data["description"]
                     ).first()
                 if not existing:
                     offer = Offer(**offer_data)
@@ -943,6 +949,7 @@ async def trigger_scrape(source: str, background_tasks: BackgroundTasks, db: Ses
         "wttj": WelcomeToTheJungleScraper,
         "apec": ApecScraper,
         "meteojob": MeteojobScraper,
+        "rhalternance": RHAlternanceScraper,
     }
 
     if source not in scrapers:
@@ -989,12 +996,17 @@ async def trigger_scrape(source: str, background_tasks: BackgroundTasks, db: Ses
                     ).first()
                 
                 if not existing:
-                    # Content-based duplicate check
+                    # Content-based duplicate check (Title + Company + Dept)
                     existing = bg_db.query(Offer).filter(
                         Offer.title == offer_data.get("title"),
-                        Offer.description == offer_data.get("description"),
-                        Offer.location == offer_data.get("location"),
+                        Offer.company == offer_data.get("company"),
                         Offer.department == offer_data.get("department")
+                    ).first()
+                
+                if not existing and offer_data.get("description"):
+                    # Fallback check on exact description match
+                    existing = bg_db.query(Offer).filter(
+                        Offer.description == offer_data["description"]
                     ).first()
                 if not existing:
                     offer = Offer(**offer_data)

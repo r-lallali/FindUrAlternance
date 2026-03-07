@@ -1888,13 +1888,11 @@ a:hover {
 }
 
 .btn-user {
-    /* Inherits from .btn .btn-theme */
-    border: none !important;
-    background: transparent !important;
-    color: inherit !important;
-    font-size: inherit !important;
-    font-weight: inherit !important;
-    padding: 0 !important;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding-left: 12px !important;
+    padding-right: 14px !important;
 }
 
 .user-avatar {

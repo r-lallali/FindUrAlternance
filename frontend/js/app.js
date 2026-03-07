@@ -163,6 +163,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (sidebarToggleBtn) sidebarToggleBtn.style.display = 'none';
                     // If not already cached or preloading, this will show skeletons
                     loadTechStats(false, false);
+                    setTimeout(() => window.dispatchEvent(new Event('resize')), 150);
                 } else if (tab === 'favorites') {
                     document.getElementById('contentFavorites').classList.remove('hidden');
                     if (sidebar) sidebar.classList.add('hidden');
@@ -520,8 +521,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const oldApiScale = oldScale === 'year' ? 'month' : oldScale;
             let centerTime = Date.now();
 
-            if (cachedTimelineData[oldApiScale]) {
-                const viewData = cachedTimelineData[oldApiScale];
+            if (cachedTimelineData[oldApiScale] && cachedTimelineData[oldApiScale].data) {
+                const viewData = cachedTimelineData[oldApiScale].data;
                 let mPts = { 'year': 12, 'month': 3, 'week': 4, 'day': 3 }[oldScale] || 12;
                 const endIdx = viewData.length - currentTimelineOffset;
                 const startIdx = Math.max(0, endIdx - mPts);
@@ -536,19 +537,23 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Fetch target scale data
             const newApiScale = scale === 'year' ? 'month' : scale;
-            if (!cachedTimelineData[newApiScale]) {
+            const now = Date.now();
+            if (!cachedTimelineData[newApiScale] || (now - (cachedTimelineData[newApiScale].timestamp || 0) > 300000)) {
                 const loading = document.getElementById('timelineLoading');
                 if (loading) {
                     loading.style.display = 'block';
                     loading.textContent = 'Calcul...';
                 }
                 const res = await API.getTimelineStats(newApiScale);
-                cachedTimelineData[newApiScale] = Array.isArray(res) ? res : [];
+                cachedTimelineData[newApiScale] = {
+                    data: Array.isArray(res) ? res : [],
+                    timestamp: now
+                };
             }
 
             // Find equivalent offset
             let targetOffset = 0;
-            const nextFullData = cachedTimelineData[newApiScale];
+            const nextFullData = cachedTimelineData[newApiScale].data;
 
             if (nextFullData && nextFullData.length > 0) {
                 let minDiff = Infinity;
@@ -724,7 +729,11 @@ document.addEventListener('DOMContentLoaded', () => {
         function draw() {
             try {
                 const rect = container.getBoundingClientRect();
-                if (rect.width <= 0) return; // Tab is likely hidden or not yet laid out
+                if (rect.width <= 0) {
+                    // Try again in 100ms if hidden
+                    setTimeout(draw, 100);
+                    return;
+                }
 
                 canvas.width = rect.width * dpr;
                 canvas.height = 280 * dpr;
@@ -884,12 +893,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
 
                 let nextApiScale = nextScale === 'year' ? 'month' : nextScale;
-                if (!cachedTimelineData[nextApiScale]) {
+                const now = Date.now();
+                if (!cachedTimelineData[nextApiScale] || (now - (cachedTimelineData[nextApiScale].timestamp || 0) > 300000)) {
                     const res = await API.getTimelineStats(nextApiScale);
-                    cachedTimelineData[nextApiScale] = Array.isArray(res) ? res : [];
+                    cachedTimelineData[nextApiScale] = {
+                        data: Array.isArray(res) ? res : [],
+                        timestamp: now
+                    };
                 }
 
-                const nextFullData = cachedTimelineData[nextApiScale];
+                const nextFullData = cachedTimelineData[nextApiScale].data;
 
                 // Try to find the closest date in the new scale
                 let targetOffset = 0;

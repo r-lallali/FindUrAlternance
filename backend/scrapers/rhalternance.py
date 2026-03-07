@@ -85,9 +85,14 @@ class RHAlternanceScraper(BaseScraper):
                             company = ""
                             location = ""
                             date_text = ""
-                            
                             if len(footer_items) >= 1:
                                 company = footer_items[0].get_text(strip=True)
+                            
+                            # Fallback to img alt for company name
+                            if not company or "confidentielle" in company.lower():
+                                img = job.select_one(".job-listing-company-logo img")
+                                if img and img.get("alt"):
+                                    company = img.get("alt")
                             if len(footer_items) >= 2:
                                 location = footer_items[1].get_text(strip=True)
                             if len(footer_items) >= 4:
@@ -186,7 +191,7 @@ class RHAlternanceScraper(BaseScraper):
                  pub_date = datetime.utcnow()
             
             # School check
-            is_school = is_school_offer(company, clean_desc)
+            is_school = is_school_offer(company, clean_desc, title)
             
             # Location cleaning
             cloc = clean_text(raw_data.get("location"))

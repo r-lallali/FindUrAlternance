@@ -143,7 +143,7 @@ class MeteojobScraper(BaseScraper):
             elif not salary_text:
                 salary_text = salary_data.get("text")
 
-            is_school = is_school_offer(company, description)
+            is_school = is_school_offer(company, description, title)
             cloc = clean_text(location)
             enriched_loc, dept = enrich_location(cloc)
             

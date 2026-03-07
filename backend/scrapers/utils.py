@@ -70,6 +70,7 @@ SCHOOL_KEYWORDS = [
     "notre école", "notre ecole",
     "notre formation",
     "rejoignez notre cursus",
+    "association imc", "imc alternance", "imc formation",
 ]
 
 # Keywords in description that suggest the offer is from a school
@@ -98,6 +99,7 @@ SCHOOL_DESCRIPTION_KEYWORDS = [
     "postulez a notre formation",
     "titre professionnel", "titre rncp",
     "formation gratuite et rémunérée",
+    "formation qualifiante", "titre certifié", "titre certifie",
     "formation gratuite et remuneree",
     "prise en charge par l'opco",
     "aucun frais pour le candidat",
@@ -117,17 +119,24 @@ SCHOOL_DESCRIPTION_KEYWORDS = [
 ]
 
 
-def is_school_offer(company: str, description: Optional[str] = None) -> bool:
+def is_school_offer(company: str, description: Optional[str] = None, title: Optional[str] = None) -> bool:
     """
     Detect if an offer comes from a school rather than a company.
 
     Args:
         company: The company/organization name
         description: The offer description text
+        title: The offer title
 
     Returns:
         True if the offer appears to be from a school
     """
+    if title:
+        title_lower = title.lower().strip()
+        # "Futur Chauffeur", "Préparez votre BTS", etc.
+        if title_lower.startswith("futur") or "préparez" in title_lower or "preparez" in title_lower:
+            return True
+
     if not company:
         return False
 

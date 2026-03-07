@@ -261,7 +261,7 @@ class FranceTravailScraper(BaseScraper):
             description = raw_data.get("description", "")
 
             # School detection
-            is_school = is_school_offer(company, description)
+            is_school = is_school_offer(company, description, title)
 
             # Location
             location = raw_data.get("location", "")

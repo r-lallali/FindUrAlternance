@@ -290,7 +290,7 @@ class LinkedInScraper(BaseScraper):
                 company = "Entreprise non renseignée"
 
             # School detection
-            is_school = is_school_offer(company, title)
+            is_school = is_school_offer(company, description, title)
 
             # Location
             location = raw_data.get("location", "")

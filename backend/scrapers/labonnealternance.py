@@ -257,7 +257,7 @@ class LaBonneAlternanceScraper(BaseScraper):
                     description = f"Poste en tant que {description}. (Description détaillée non disponible)"
 
             # School detection
-            is_school = is_school_offer(company_name, description)
+            is_school = is_school_offer(company_name, description, title)
 
             # Extract location
             place = raw_data.get("place", {})

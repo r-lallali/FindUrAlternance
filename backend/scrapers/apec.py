@@ -132,7 +132,7 @@ class ApecScraper(BaseScraper):
             # URL
             url = f"https://www.apec.fr/candidat/recherche-emploi.html/emploi/detail-offre/{oid}"
             
-            is_school = is_school_offer(company, description)
+            is_school = is_school_offer(company, description, title)
             cloc = clean_text(location)
             enriched_loc, dept = enrich_location(cloc)
             

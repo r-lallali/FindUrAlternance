@@ -267,5 +267,5 @@ class HelloWorkScraper(BaseScraper):
             "source": "hellowork",
             "url": raw_data["url"],
             "source_id": f"hw_{raw_data.get('_id', '')}",
-            "is_school": is_school_offer(clean_text(raw_data["company"]), clean_text(raw_data["description"])),
+            "is_school": is_school_offer(clean_text(raw_data["company"]), clean_text(raw_data["description"]), clean_text(raw_data["title"])),
         }

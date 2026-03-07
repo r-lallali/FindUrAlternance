@@ -172,7 +172,7 @@ class WelcomeToTheJungleScraper(BaseScraper):
                 "source": "wttj",
                 "url": url,
                 "source_id": f"wttj_{raw_data.get('objectID', '')}",
-                "is_school": is_school_offer(clean_text(company), desc),
+                "is_school": is_school_offer(clean_text(company), desc, clean_text(title)),
             }
         except Exception as e:
             self.logger.debug(f"WTTJ parse error: {e}")

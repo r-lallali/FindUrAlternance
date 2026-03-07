@@ -131,37 +131,47 @@ class LaBonneAlternanceScraper(BaseScraper):
             "caller": "fua-dashboard",
         }
 
-        try:
-            async with httpx.AsyncClient(timeout=30.0, follow_redirects=True) as client:
-                response = await client.get(self.SEARCH_URL, params=params)
+        for attempt in range(3): # 3 attempts
+            try:
+                async with httpx.AsyncClient(timeout=30.0, follow_redirects=True) as client:
+                    response = await client.get(self.SEARCH_URL, params=params)
 
-                if response.status_code == 200:
-                    data = response.json()
-                    offers = []
+                    if response.status_code == 200:
+                        data = response.json()
+                        offers = []
 
-                    # Extract job offers from nested structure
-                    jobs = data.get("jobs", {})
-                    if isinstance(jobs, dict):
-                        for key in ["peJobs", "matchas", "partnerJobs"]:
-                            sub = jobs.get(key)
-                            if isinstance(sub, dict) and "results" in sub:
-                                offers.extend(sub["results"])
-                            elif isinstance(sub, list):
-                                offers.extend(sub)
+                        # Extract job offers from nested structure
+                        jobs = data.get("jobs", {})
+                        if isinstance(jobs, dict):
+                            for key in ["peJobs", "matchas", "partnerJobs"]:
+                                sub = jobs.get(key)
+                                if isinstance(sub, dict) and "results" in sub:
+                                    offers.extend(sub["results"])
+                                elif isinstance(sub, list):
+                                    offers.extend(sub)
 
-                    return offers
-                else:
-                    self.logger.warning(
-                        f"API returned {response.status_code} for ROME {rome_codes}, INSEE {insee}"
-                    )
-                    return []
+                        return offers
+                    elif response.status_code == 429:
+                        wait = 10 * (attempt + 1)
+                        self.logger.warning(f"LBA Rate Limited (429). Waiting {wait}s before retry {attempt+1}...")
+                        await asyncio.sleep(wait)
+                        continue
+                    else:
+                        self.logger.warning(
+                            f"API returned {response.status_code} for ROME {rome_codes}, INSEE {insee}"
+                        )
+                        return []
 
-        except httpx.TimeoutException:
-            self.logger.warning(f"Timeout for ROME {rome_codes}, INSEE {insee}")
-            return []
-        except Exception as e:
-            self.logger.error(f"Error fetching offers: {e}")
-            return []
+            except httpx.TimeoutException:
+                self.logger.warning(f"Timeout for ROME {rome_codes}, INSEE {insee} (attempt {attempt+1})")
+                if attempt < 2:
+                    await asyncio.sleep(5)
+                continue
+            except Exception as e:
+                self.logger.error(f"Error fetching offers: {e}")
+                return []
+        
+        return []
 
     def parse_offer(self, raw_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         """Parse a raw offer from La Bonne Alternance API."""

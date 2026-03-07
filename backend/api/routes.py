@@ -880,7 +880,11 @@ async def run_global_scrape():
                             existing.description = offer_data["description"]
                     if offer_data.get("publication_date"):
                         existing.publication_date = offer_data["publication_date"]
-            bg_db.commit()
+                    # Update company name if old one was generic
+                    if offer_data.get("company") and "confidentielle" in (existing.company or "").lower():
+                        if "confidentielle" not in offer_data["company"].lower():
+                            existing.company = offer_data["company"]
+                bg_db.commit()
             
             # Total offers after this source's scrape
             total_after = bg_db.query(Offer).count()
@@ -1018,6 +1022,10 @@ async def trigger_scrape(source: str, background_tasks: BackgroundTasks, db: Ses
                             existing.description = offer_data["description"]
                     if offer_data.get("publication_date"):
                         existing.publication_date = offer_data["publication_date"]
+                    # Update company name if old one was generic
+                    if offer_data.get("company") and "confidentielle" in (existing.company or "").lower():
+                        if "confidentielle" not in offer_data["company"].lower():
+                            existing.company = offer_data["company"]
             bg_db.commit()
             
             # Total offers after

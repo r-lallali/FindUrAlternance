@@ -441,21 +441,21 @@ def parse_french_date(date_text: str) -> Optional[datetime]:
     if "hier" in date_text:
         return now - timedelta(days=1)
     
-    # "il y a X ..."
-    match_ago = re.search(r"il y a (\d+) (jour|semaine|mois|heure|minute)", date_text)
+    # "il y a X ..." or "X ... passée(s)" or "X ... ago"
+    match_ago = re.search(r"(?:il y a\s+)?(\d+)\s+(jour|semaine|mois|heure|minute|day|week|month|hour|min)(?:s|\(s\))?", date_text)
     if match_ago:
         n = int(match_ago.group(1))
-        unit = match_ago.group(2)
-        if "heure" in unit:
+        unit = match_ago.group(2).lower()
+        if unit in ["heure", "hour"]:
             return now - timedelta(hours=n)
-        if "minute" in unit:
+        if unit in ["minute", "min"]:
             return now - timedelta(minutes=n)
-        if "jour" in unit:
+        if unit in ["jour", "day"]:
             return now - timedelta(days=n)
-        if "semaine" in unit:
+        if unit in ["semaine", "week"]:
             return now - timedelta(weeks=n)
-        if "mois" in unit:
-            return now - timedelta(days=n * 30) # Approximation
+        if unit in ["mois", "month"]:
+            return now - timedelta(days=n * 30)
 
     # 2. Absolute dates (DD/MM/YYYY)
     match_abs = re.search(r"(\d{1,2})[/\-](\d{1,2})[/\-](\d{2,4})", date_text)
@@ -468,12 +468,15 @@ def parse_french_date(date_text: str) -> Optional[datetime]:
         except ValueError:
             pass
 
-    # 3. Textual months (25 février 2026, 25 févr. 2026)
-    months_fr = {
+    # 3. Textual months (25 février 2026, 25 févr. 2026, Feb 07, 2026)
+    months_map = {
         "janv": 1, "févr": 2, "fevr": 2, "mars": 3, "avril": 4, "mai": 5, "juin": 6,
         "juil": 7, "août": 8, "aout": 8, "sept": 9, "octo": 10, "nove": 11, "déce": 12, "dece": 12,
         "janvier": 1, "février": 2, "fevrier": 2, "avril": 4, "juillet": 7, "septembre": 9,
-        "octobre": 10, "novembre": 11, "décembre": 12
+        "octobre": 10, "novembre": 11, "décembre": 12,
+        # English fallbacks (observed on some French sites)
+        "jan": 1, "feb": 2, "mar": 3, "apr": 4, "may": 5, "jun": 6,
+        "jul": 7, "aug": 8, "sep": 9, "oct": 10, "nov": 11, "dec": 12
     }
     
     # Match pattern: Day Month Year (e.g. 25 février 2026)
@@ -481,17 +484,27 @@ def parse_french_date(date_text: str) -> Optional[datetime]:
     if match_text:
         day, month_str, year = match_text.groups()
         month_str = month_str.replace(".", "")
-        if month_str in months_fr:
+        if month_str in months_map:
             try:
-                return datetime(int(year), months_fr[month_str], int(day))
+                return datetime(int(year), months_map[month_str], int(day))
             except ValueError:
                 pass
         # Check prefixes
-        for m_name, m_val in months_fr.items():
+        for m_name, m_val in months_map.items():
             if month_str.startswith(m_name[:4]):
                 try:
                     return datetime(int(year), m_val, int(day))
                 except ValueError:
                     continue
+    
+    # Match pattern: Month Day, Year (e.g. Feb 07, 2026)
+    match_eng = re.search(r"([a-z]{3})\s+(\d{1,2}),\s+(\d{4})", date_text)
+    if match_eng:
+        month_str, day, year = match_eng.groups()
+        if month_str in months_map:
+            try:
+                return datetime(int(year), months_map[month_str], int(day))
+            except ValueError:
+                pass
 
     return None

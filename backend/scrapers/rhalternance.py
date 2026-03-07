@@ -2,7 +2,7 @@
 import asyncio
 import logging
 from typing import List, Dict, Any, Optional
-from datetime import datetime
+from datetime import datetime, timedelta
 from bs4 import BeautifulSoup
 from curl_cffi.requests import AsyncSession
 from scrapers.base_scraper import BaseScraper
@@ -32,8 +32,10 @@ class RHAlternanceScraper(BaseScraper):
             except Exception as e:
                 self.logger.warning(f"Failed to fetch main page for cookies: {e}")
 
-            # Fetch up to 20 pages of results (approx 400 offers)
-            max_pages = kwargs.get("max_pages", 20)
+            # Fetch up to 100 pages of results (approx 2000 offers)
+            # User noted there are many offers and they want older ones.
+            max_pages = kwargs.get("max_pages", 60) 
+            
             for page in range(1, max_pages + 1):
                 try:
                     self.logger.info(f"RH Alternance: Fetching all sectors API page {page}...")
@@ -56,7 +58,7 @@ class RHAlternanceScraper(BaseScraper):
                     data = response.json()
                     html_content = data.get("html", "")
                     if not html_content or "job-listing" not in html_content:
-                        self.logger.info("RH Alternance: No more jobs found.")
+                        self.logger.info("RH Alternance: No more jobs found or limit reached.")
                         break
 
                     soup = BeautifulSoup(html_content, "html.parser")
@@ -91,7 +93,6 @@ class RHAlternanceScraper(BaseScraper):
                             if len(footer_items) >= 4:
                                 date_text = footer_items[3].get_text(strip=True)
                             
-                            # Unique ID based on the URL's trailing ID
                             sid = None
                             if '-' in full_url:
                                 sid = f"rhalternance_{full_url.split('-')[-1]}"
@@ -112,47 +113,58 @@ class RHAlternanceScraper(BaseScraper):
                             self.logger.warning(f"Error parsing RH Alternance job card: {e}")
                             continue
                             
-                    await asyncio.sleep(0.5)
+                    await asyncio.sleep(0.3)
                         
                 except Exception as e:
                     self.logger.error(f"Error scraping RH Alternance API page {page}: {e}")
                     break
 
-            # Now fetch descriptions in parallel for all collected offers
-            self.logger.info(f"RH Alternance: Fetching descriptions for {len(all_raw_offers)} offers...")
+            # Deduplicate items before fetching descriptions
+            unique_offers = {}
+            for o in all_raw_offers:
+                unique_offers[o["source_id"]] = o
             
-            semaphore = asyncio.Semaphore(5)  # Limit concurrency to be polite
+            final_offers = list(unique_offers.values())
+            self.logger.info(f"RH Alternance: Fetching descriptions for {len(final_offers)} unique offers...")
+            
+            # Use chunks to fetch descriptions in parallel
+            semaphore = asyncio.Semaphore(10)
 
             async def fetch_description(raw_offer):
                 async with semaphore:
-                    for retry in range(2): # Simple retry logic
+                    for retry in range(2):
                         try:
                             detail_res = await session.get(raw_offer["url"], timeout=30)
                             if detail_res.status_code == 200:
                                 detail_soup = BeautifulSoup(detail_res.text, "html.parser")
+                                # Updated description detection logic
                                 sections = detail_soup.select(".single-page-section")
                                 desc_section = None
+                                
+                                # Priority 1: Section with descriptive title
                                 for sec in sections:
                                     h3 = sec.select_one("h3")
-                                    if h3 and "descriptif" in h3.get_text().lower():
-                                        desc_section = sec
-                                        break
+                                    if h3:
+                                        h3_text = h3.get_text().lower()
+                                        if any(kw in h3_text for kw in ["descriptif", "détail", "missions", "profil", "description"]):
+                                            desc_section = sec
+                                            break
+                                            
+                                # Priority 2: Section with most text content
                                 if not desc_section and sections:
-                                    # Fallback to the largest text section
                                     desc_section = max(sections, key=lambda s: len(s.get_text()))
                                 
-                                raw_offer["description"] = desc_section.get_text(separator="\n", strip=True) if desc_section else ""
+                                if desc_section:
+                                    raw_offer["description"] = desc_section.get_text(separator="\n", strip=True)
                                 return
-                            await asyncio.sleep(1)
+                            await asyncio.sleep(0.5)
                         except Exception as e:
-                            if retry == 1:
-                                self.logger.debug(f"Failed to fetch description for {raw_offer['url']}: {e}")
                             await asyncio.sleep(1)
 
-            tasks = [fetch_description(offer) for offer in all_raw_offers]
+            tasks = [fetch_description(offer) for offer in final_offers]
             await asyncio.gather(*tasks)
 
-        return all_raw_offers
+        return final_offers
 
     def parse_offer(self, raw_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         try:
@@ -164,15 +176,17 @@ class RHAlternanceScraper(BaseScraper):
             if not title or not url:
                 return None
             
-            # We want to skip offers that failed to get a description if they are likely useless
-            if not description or len(description) < 50:
-                 return None
-                
+            # Clean description
+            clean_desc = clean_text(description, preserve_newlines=True)
+            
             # Date parsing
-            pub_date = parse_french_date(raw_data.get("date_text", "")) or datetime.utcnow()
+            raw_date = raw_data.get("date_text", "")
+            pub_date = parse_french_date(raw_date)
+            if not pub_date:
+                 pub_date = datetime.utcnow()
             
             # School check
-            is_school = is_school_offer(company, description)
+            is_school = is_school_offer(company, clean_desc)
             
             # Location cleaning
             cloc = clean_text(raw_data.get("location"))
@@ -185,7 +199,7 @@ class RHAlternanceScraper(BaseScraper):
                 "department": dept,
                 "contract_type": "Alternance",
                 "salary": None,
-                "description": clean_text(description, preserve_newlines=True),
+                "description": clean_desc,
                 "profile": None,
                 "category": None,
                 "publication_date": pub_date,

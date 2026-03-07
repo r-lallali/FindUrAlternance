@@ -42,6 +42,13 @@ class LaBonneAlternanceScraper(BaseScraper):
         "marketing": ["M1705", "M1703"],
         "logistique": ["N1301", "N1303"],
         "banque": ["C1201", "C1202"],
+        "btp": ["F1106", "F1604", "F1701", "F1704"],
+        "sante": ["J1506", "J1301", "J1302"],
+        "industrie": ["H1206", "H1401", "H1502", "H2502"],
+        "tourisme_hotellerie": ["G1203", "G1803", "G1602"],
+        "services_personne": ["K1302", "K1304", "K1305"],
+        "immobilier": ["C1501", "C1502", "C1503"],
+        "arts_design": ["B1101", "B1805", "E1205"],
     }
 
     def __init__(self):

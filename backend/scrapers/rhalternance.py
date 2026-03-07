@@ -27,7 +27,7 @@ class RHAlternanceScraper(BaseScraper):
         async with AsyncSession(impersonate="chrome110") as session:
             # First, visit the main page to get cookies
             try:
-                await session.get(self.BASE_URL + "/jobs?category=26")
+                await session.get(self.BASE_URL + "/jobs")
                 await asyncio.sleep(1)
             except Exception as e:
                 self.logger.warning(f"Failed to fetch main page for cookies: {e}")
@@ -35,15 +35,15 @@ class RHAlternanceScraper(BaseScraper):
             # Fetch first 3 pages of results
             for page in range(1, 4):
                 try:
-                    self.logger.info(f"RH Alternance: Fetching API page {page}...")
+                    self.logger.info(f"RH Alternance: Fetching all sectors API page {page}...")
                     payload = {
                         "userCity": "0",
-                        "category": "26",
+                        "category": "0", # 0 = All categories
                         "page": str(page)
                     }
                     headers = {
                         "X-Requested-With": "XMLHttpRequest",
-                        "Referer": f"{self.BASE_URL}/jobs?category=26",
+                        "Referer": f"{self.BASE_URL}/jobs",
                         "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8"
                     }
                     

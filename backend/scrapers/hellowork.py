@@ -34,7 +34,7 @@ class HelloWorkScraper(BaseScraper):
         """Scrape HelloWork alternance offers."""
         keywords = kwargs.get(
             "keywords",
-            ["alternance informatique", "alternance développeur", "alternance data"],
+            ["alternance", "apprentissage"],
         )
         max_pages = kwargs.get("max_pages", 2)
 

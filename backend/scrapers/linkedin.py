@@ -35,16 +35,8 @@ class LinkedInScraper(BaseScraper):
     }
 
     SEARCH_TERMS = [
-        "alternance développeur",
-        "alternance commercial",
-        "alternance marketing",
-        "alternance comptabilité",
-        "alternance ressources humaines",
-        "alternance communication",
-        "alternance informatique",
-        "apprentissage ingénieur",
-        "alternance data",
-        "alternance design",
+        "alternance",
+        "apprentissage",
     ]
 
     # LinkedIn location GeoIds for French cities

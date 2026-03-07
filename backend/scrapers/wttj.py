@@ -42,9 +42,8 @@ class WelcomeToTheJungleScraper(BaseScraper):
         hits_per_page = 20
 
         queries = [
-            "alternance informatique",
-            "alternance développeur",
-            "alternance data",
+            "alternance",
+            "apprentissage",
         ]
 
         seen_ids = set()

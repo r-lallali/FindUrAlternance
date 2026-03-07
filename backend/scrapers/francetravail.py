@@ -27,18 +27,10 @@ class FranceTravailScraper(BaseScraper):
         "Connection": "keep-alive",
     }
 
-    # Search keywords to cover various alternance sectors
     SEARCH_TERMS = [
-        "alternance développeur",
-        "alternance commercial",
-        "alternance marketing",
-        "alternance comptabilité",
-        "alternance ressources humaines",
-        "alternance communication",
-        "alternance logistique",
-        "alternance informatique",
-        "apprentissage ingénieur",
-        "alternance data",
+        "alternance",
+        "apprentissage",
+        "contrat de professionnalisation",
     ]
 
     def __init__(self):

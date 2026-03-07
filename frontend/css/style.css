@@ -1890,12 +1890,12 @@ a:hover {
 .btn-user {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 8px;
     padding: 6px 12px;
-    border: 1px solid var(--border);
+    border: 1px solid var(--border) !important;
     border-radius: var(--radius-sm);
-    background: var(--bg-input);
-    color: var(--text-secondary);
+    background: var(--bg-input) !important;
+    color: var(--text-secondary) !important;
     cursor: pointer;
     font-family: inherit;
     font-size: 13px;

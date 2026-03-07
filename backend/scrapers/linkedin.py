@@ -98,8 +98,8 @@ class LinkedInScraper(BaseScraper):
                                 seen_ids.add(oid)
                                 all_offers.append(offer)
 
-                        # Rate limiting (reduced for speed, handled by semaphore)
-                        await asyncio.sleep(0.5)
+                        # Rate limiting (increased to be more respectfull/stealthy)
+                        await asyncio.sleep(5.0)
                     except Exception as e:
                         self.logger.warning(f"Error on LinkedIn page {page} for '{term}': {e}")
 
@@ -120,31 +120,52 @@ class LinkedInScraper(BaseScraper):
             "pageNum": 0,
         }
 
-        try:
-            # Try the guest API endpoint first
-            response = await client.get(self.SEARCH_URL, params=params)
+        for attempt in range(4): # 4 attempts
+            try:
+                # Try the guest API endpoint first
+                response = await client.get(self.SEARCH_URL, params=params)
 
-            if response.status_code == 200:
-                return self._parse_search_page(response.text)
+                if response.status_code == 200:
+                    return self._parse_search_page(response.text)
+                
+                if response.status_code == 429:
+                    wait_sec = 60 * (attempt + 1)
+                    self.logger.warning(f"LinkedIn Rate Limited (429). Waiting {wait_sec}s before retry {attempt+1}...")
+                    await asyncio.sleep(wait_sec)
+                    continue
 
-            # Fallback to the public search page
-            self.logger.debug(f"Guest API returned {response.status_code}, trying public URL")
-            response = await client.get(self.PUBLIC_URL, params={
-                "keywords": keyword,
-                "location": "France",
-                "geoId": geo_id,
-                "start": start,
-            })
+                # Fallback to the public search page
+                self.logger.debug(f"Guest API returned {response.status_code}, trying public URL")
+                response = await client.get(self.PUBLIC_URL, params={
+                    "keywords": keyword,
+                    "location": "France",
+                    "geoId": geo_id,
+                    "start": start,
+                })
 
-            if response.status_code == 200:
-                return self._parse_search_page(response.text)
+                if response.status_code == 200:
+                    return self._parse_search_page(response.text)
+                
+                if response.status_code == 429:
+                    wait_sec = 60 * (attempt + 1)
+                    self.logger.warning(f"LinkedIn Rate Limited (429) on Public URL. Waiting {wait_sec}s before retry...")
+                    await asyncio.sleep(wait_sec)
+                    continue
 
-            self.logger.warning(f"LinkedIn returned {response.status_code}")
-            return []
+                self.logger.warning(f"LinkedIn returned {response.status_code}")
+                return []
 
-        except httpx.TimeoutException:
-            self.logger.warning(f"Timeout on LinkedIn for '{keyword}'")
-            return []
+            except httpx.TimeoutException:
+                self.logger.warning(f"Timeout on LinkedIn for '{keyword}' (attempt {attempt+1})")
+                if attempt < 3:
+                    await asyncio.sleep(5)
+                    continue
+                return []
+            except Exception as e:
+                self.logger.error(f"LinkedIn scrape error: {e}")
+                return []
+        
+        return []
 
     async def _fetch_description(self, client: httpx.AsyncClient, job_id: str) -> Optional[str]:
         """Fetch the job description from its LinkedIn public page."""

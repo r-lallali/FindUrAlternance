@@ -41,36 +41,58 @@ class MeteojobScraper(BaseScraper):
                         "facetContract": "APPRENTICE"
                     }
                     
-                    try:
-                        response = await session.get(
-                            self.SEARCH_API_URL, 
-                            params=params,
-                            headers={
-                                "x-meteojob-requester": "candidate-front",
-                                "Referer": f"https://www.meteojob.com/jobs?what={term}"
-                            }
-                        )
-                        
-                        if response.status_code == 200:
-                            data = response.json()
-                            content = data.get("content", [])
-                            if not content:
+                    success = False
+                    for attempt in range(3): # 3 retries
+                        try:
+                            response = await session.get(
+                                self.SEARCH_API_URL, 
+                                params=params,
+                                headers={
+                                    "x-meteojob-requester": "candidate-front",
+                                    "Referer": f"https://www.meteojob.com/jobs?what={term}"
+                                },
+                                timeout=45 # 45s timeout
+                            )
+                            
+                            if response.status_code == 200:
+                                data = response.json()
+                                content = data.get("content", [])
+                                if not content:
+                                    success = True # Mark as success to exit retry loop
+                                    break
+                                    
+                                self.logger.info(f"Meteojob: Found {len(content)} items on page {page}")
+                                for item in content:
+                                    oid = item.get("id")
+                                    if oid and oid not in seen_ids:
+                                        seen_ids.add(oid)
+                                        all_offers.append(item)
+                                success = True
                                 break
-                                
-                            self.logger.info(f"Meteojob: Found {len(content)} items on page {page} for '{term}'")
-                            for item in content:
-                                oid = item.get("id")
-                                if oid and oid not in seen_ids:
-                                    seen_ids.add(oid)
-                                    all_offers.append(item)
-                        else:
-                            self.logger.warning(f"Meteojob search failed with status {response.status_code} for '{term}' at page {page}")
-                            break
-                    except Exception as e:
-                        self.logger.error(f"Error in Meteojob scrape for '{term}' at page {page}: {e}")
+                            elif response.status_code == 429:
+                                self.logger.warning(f"Meteojob: Rate limited (429) on page {page}, waiting...")
+                                await asyncio.sleep(10 * (attempt + 1))
+                            else:
+                                self.logger.warning(f"Meteojob search failed with status {response.status_code} for page {page}")
+                                break # Other status codes might not be worth retrying
+                        except Exception as e:
+                            if attempt < 2:
+                                self.logger.debug(f"Meteojob: Attempt {attempt+1} failed for page {page}: {e}. Retrying...")
+                                await asyncio.sleep(2 * (attempt + 1))
+                            else:
+                                self.logger.error(f"Error in Meteojob scrape at page {page} after {attempt+1} attempts: {e}")
+                    
+                    if not success:
+                        # If a page fails completely, we continue to the next one instead of breaking the whole scrape
+                        self.logger.warning(f"Meteojob: Skipping page {page} due to repeated errors.")
+                        continue
+                    
+                    # If we got an empty page (meaning no more results), we can stop the loop
+                    if success and page > 1 and not content:
+                        self.logger.info("Meteojob: No more results, stopping.")
                         break
                     
-                    await asyncio.sleep(1)
+                    await asyncio.sleep(1.5)
 
         return all_offers
 

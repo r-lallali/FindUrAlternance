@@ -19,8 +19,8 @@ class RHAlternanceScraper(BaseScraper):
 
     async def scrape(self, **kwargs) -> List[Dict[str, Any]]:
         """
-        Scrape jobs from the informatique category using the AJAX API.
-        Category 26 = Informatique, internet et télécommunication
+        Scrape jobs from RH Alternance using the AJAX API.
+        Fetches multiple pages to get a significant volume of offers.
         """
         all_raw_offers = []
         
@@ -32,8 +32,9 @@ class RHAlternanceScraper(BaseScraper):
             except Exception as e:
                 self.logger.warning(f"Failed to fetch main page for cookies: {e}")
 
-            # Fetch first 3 pages of results
-            for page in range(1, 4):
+            # Fetch up to 20 pages of results (approx 400 offers)
+            max_pages = kwargs.get("max_pages", 20)
+            for page in range(1, max_pages + 1):
                 try:
                     self.logger.info(f"RH Alternance: Fetching all sectors API page {page}...")
                     payload = {
@@ -61,6 +62,9 @@ class RHAlternanceScraper(BaseScraper):
                     soup = BeautifulSoup(html_content, "html.parser")
                     job_listings = soup.select(".job-listing")
                     
+                    if not job_listings:
+                        break
+
                     self.logger.info(f"RH Alternance: Found {len(job_listings)} jobs on page {page}.")
                     
                     for job in job_listings:
@@ -87,7 +91,12 @@ class RHAlternanceScraper(BaseScraper):
                             if len(footer_items) >= 4:
                                 date_text = footer_items[3].get_text(strip=True)
                             
-                            sid = f"rhalternance_{full_url.split('-')[-1]}" if '-' in full_url else f"rhalternance_{hash(full_url)}"
+                            # Unique ID based on the URL's trailing ID
+                            sid = None
+                            if '-' in full_url:
+                                sid = f"rhalternance_{full_url.split('-')[-1]}"
+                            else:
+                                sid = f"rhalternance_{abs(hash(full_url))}"
                             
                             raw_offer = {
                                 "title": title,
@@ -96,45 +105,52 @@ class RHAlternanceScraper(BaseScraper):
                                 "date_text": date_text,
                                 "url": full_url,
                                 "source_id": sid,
-                                "description": "" # Will fetch only if needed or later
+                                "description": ""
                             }
-                            
-                            # To avoid too many requests during scrape, we could gather descriptions later
-                            # or just fetch the top ones.
-                            # For now, let's fetch descriptions for the first batch.
                             all_raw_offers.append(raw_offer)
-                            
                         except Exception as e:
                             self.logger.warning(f"Error parsing RH Alternance job card: {e}")
                             continue
                             
-                    await asyncio.sleep(1)
+                    await asyncio.sleep(0.5)
                         
                 except Exception as e:
                     self.logger.error(f"Error scraping RH Alternance API page {page}: {e}")
                     break
 
-            # Now fetch descriptions for the collected offers (limit to 30 to stay polite)
-            self.logger.info(f"RH Alternance: Fetching descriptions for {len(all_raw_offers[:30])} offers...")
-            for raw_offer in all_raw_offers[:30]:
-                try:
-                    detail_res = await session.get(raw_offer["url"])
-                    if detail_res.status_code == 200:
-                        detail_soup = BeautifulSoup(detail_res.text, "html.parser")
-                        sections = detail_soup.select(".single-page-section")
-                        desc_section = None
-                        for sec in sections:
-                            h3 = sec.select_one("h3")
-                            if h3 and "descriptif" in h3.get_text().lower():
-                                desc_section = sec
-                                break
-                        if not desc_section and sections:
-                            desc_section = sections[0]
-                        
-                        raw_offer["description"] = desc_section.get_text(separator="\n", strip=True) if desc_section else ""
-                    await asyncio.sleep(0.3)
-                except Exception as e:
-                    self.logger.warning(f"Error fetching description for {raw_offer['url']}: {e}")
+            # Now fetch descriptions in parallel for all collected offers
+            self.logger.info(f"RH Alternance: Fetching descriptions for {len(all_raw_offers)} offers...")
+            
+            semaphore = asyncio.Semaphore(5)  # Limit concurrency to be polite
+
+            async def fetch_description(raw_offer):
+                async with semaphore:
+                    for retry in range(2): # Simple retry logic
+                        try:
+                            detail_res = await session.get(raw_offer["url"], timeout=30)
+                            if detail_res.status_code == 200:
+                                detail_soup = BeautifulSoup(detail_res.text, "html.parser")
+                                sections = detail_soup.select(".single-page-section")
+                                desc_section = None
+                                for sec in sections:
+                                    h3 = sec.select_one("h3")
+                                    if h3 and "descriptif" in h3.get_text().lower():
+                                        desc_section = sec
+                                        break
+                                if not desc_section and sections:
+                                    # Fallback to the largest text section
+                                    desc_section = max(sections, key=lambda s: len(s.get_text()))
+                                
+                                raw_offer["description"] = desc_section.get_text(separator="\n", strip=True) if desc_section else ""
+                                return
+                            await asyncio.sleep(1)
+                        except Exception as e:
+                            if retry == 1:
+                                self.logger.debug(f"Failed to fetch description for {raw_offer['url']}: {e}")
+                            await asyncio.sleep(1)
+
+            tasks = [fetch_description(offer) for offer in all_raw_offers]
+            await asyncio.gather(*tasks)
 
         return all_raw_offers
 
@@ -147,6 +163,10 @@ class RHAlternanceScraper(BaseScraper):
             
             if not title or not url:
                 return None
+            
+            # We want to skip offers that failed to get a description if they are likely useless
+            if not description or len(description) < 50:
+                 return None
                 
             # Date parsing
             pub_date = parse_french_date(raw_data.get("date_text", "")) or datetime.utcnow()

@@ -419,9 +419,17 @@ document.addEventListener('DOMContentLoaded', () => {
         renderBarChart('chartDepartments', stats.top_departments, 'tool', 'department');
         renderBarChart('chartCategories', stats.top_categories, 'method', 'category');
         renderBarChart('chartLanguages', stats.top_languages, 'lang', 'technology');
-        renderBarChart('chartFrameworks', stats.top_frameworks, 'fw', 'technology');
+
+        // Sources distribution
+        const sourceData = Object.entries(generalStats.by_source || {}).map(([name, count]) => ({
+            name: formatSource(name),
+            count: count,
+            filterValue: name
+        })).sort((a, b) => b.count - a.count);
+        renderBarChart('chartSources', sourceData, 'fw', 'source');
+
         renderBarChart('chartTools', stats.top_tools, 'tool', 'technology');
-        renderBarChart('chartMethodologies', stats.top_methodologies, 'method', 'technology');
+        renderBarChart('chartCertifications', stats.top_certifications, 'cert', 'technology');
 
         const edData = [
             { name: 'Bac+5 / Master / Ingénieur', count: generalStats.bac5_offers || 0, filterValue: 'bac+5' },

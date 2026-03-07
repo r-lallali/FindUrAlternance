@@ -28,9 +28,6 @@ document.addEventListener('DOMContentLoaded', () => {
         loadTechStats(true);
     }, 1000);
 
-    const btnScrape = document.getElementById('btnScrape');
-    if (btnScrape) btnScrape.addEventListener('click', handleScrape);
-    checkScrapeStatus(); // Check if scrape already running in background
 
 
 
@@ -101,7 +98,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const initial = user?.username?.charAt(0).toUpperCase() || '?';
             slot.innerHTML = `
                 <div class="user-menu">
-                    <button class="btn-user" id="btnUser">
+                    <button class="btn btn-theme btn-user" id="btnUser">
                         <span class="user-avatar">${initial}</span>
                         ${escapeHtml(user?.username || '')}
                     </button>
@@ -123,7 +120,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (dd && !e.target.closest('.user-menu')) dd.classList.remove('open');
             });
         } else {
-            slot.innerHTML = `<a href="/auth.html" class="btn-login">Connexion</a>`;
+            slot.innerHTML = `<a href="/auth.html" class="btn btn-theme btn-login">Connexion</a>`;
         }
     }
 
@@ -218,71 +215,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
 
-    async function checkScrapeStatus() {
-        try {
-            const status = await API.getScrapeStatus();
-            const btn = document.getElementById('btnScrape');
-            const spinnerFill = document.getElementById('scrapeSpinnerFill');
-
-            if (status.is_running) {
-                btn.disabled = true;
-                btn.classList.add('is-scraping');
-                if (spinnerFill) {
-                    spinnerFill.setAttribute('stroke-dasharray', `${status.progress}, 100`);
-                }
-            } else {
-                btn.disabled = false;
-                btn.classList.remove('is-scraping');
-                if (spinnerFill) {
-                    spinnerFill.setAttribute('stroke-dasharray', '0, 100');
-                }
-            }
-        } catch (e) { }
-    }
-
-    let isRefreshing = false;
-
-    async function handleScrape() {
-        if (isRefreshing) return;
-        isRefreshing = true;
-
-        const btn = document.getElementById('btnScrape');
-        const spinnerFill = document.getElementById('scrapeSpinnerFill');
-        if (!btn) return;
-
-        btn.disabled = true;
-        btn.classList.add('is-scraping');
-
-        let progress = 0;
-        const totalDuration = 5000; // 5 seconds
-        const intervalTime = 50;
-        const increment = (intervalTime / totalDuration) * 100;
-
-        const interval = setInterval(() => {
-            progress += increment;
-            if (spinnerFill) {
-                spinnerFill.setAttribute('stroke-dasharray', `${Math.min(progress, 100)}, 100`);
-            }
-
-            if (progress >= 100) {
-                clearInterval(interval);
-                btn.disabled = false;
-                btn.classList.remove('is-scraping');
-                if (spinnerFill) spinnerFill.setAttribute('stroke-dasharray', '0, 100');
-
-                // Actual refresh from DB
-                loadOffers();
-                const activeTab = document.querySelector('.tab-btn.active')?.dataset.tab;
-                if (activeTab === 'stats') {
-                    loadTechStats(false, true);
-                } else if (activeTab === 'favorites') {
-                    loadFavorites();
-                }
-
-                isRefreshing = false;
-            }
-        }, intervalTime);
-    }
 
     // ===== DATA LOADING =====
     async function loadOffers(params = null) {

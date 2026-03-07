@@ -272,6 +272,9 @@ NON_ALTERNANCE_KEYWORDS = [
     "vacataire",
     "cdd classique",
     "cdd de droit commun",
+    "stage",
+    "stagiaire",
+    "internship",
     "pas en alternance",
     "hors alternance",
     "contrat de professionnalisation",
@@ -346,8 +349,14 @@ def is_alternance_offer(title: str, description: Optional[str] = None,
     has_non_alternance = any(kw in text for kw in NON_ALTERNANCE_KEYWORDS)
 
     # 1. Reject if non-alternance keywords found and no strong alternance signal in title
-    if has_non_alternance and not has_alternance_in_title:
-        return False
+    if has_non_alternance:
+        # Special case: if it says "stage/alternance" or similar, we might keep it IF alternance is in title
+        if any(kw in text for kw in ["stage", "stagiaire", "internship"]):
+            # If "alternance" or "apprentissage" is in the TITLE, we might accept a "stage/alternance" mention
+            if not has_alternance_in_title:
+                return False
+        elif not has_alternance_in_title:
+            return False
         
     # 2. Strict exclusion for medical/regulated professions if no 'alternant' in title
     if not has_alternance_in_title:

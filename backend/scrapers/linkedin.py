@@ -61,8 +61,8 @@ class LinkedInScraper(BaseScraper):
             max_pages: int - Max pages per search (default: 2)
             geo_id: str - LinkedIn geo ID (default: France)
         """
-        search_terms = kwargs.get("search_terms", self.SEARCH_TERMS[:5])
-        max_pages = kwargs.get("max_pages", 2)
+        search_terms = kwargs.get("search_terms", self.SEARCH_TERMS)
+        max_pages = kwargs.get("max_pages", 5)
         geo_id = kwargs.get("geo_id", self.GEO_IDS["France"])
 
         all_offers = []
@@ -115,7 +115,7 @@ class LinkedInScraper(BaseScraper):
             "location": "France",
             "geoId": geo_id,
             "start": start,
-            "f_TPR": "r604800",  # Past week
+            "f_TPR": "r2592000",  # Past month
             "position": 1,
             "pageNum": 0,
         }

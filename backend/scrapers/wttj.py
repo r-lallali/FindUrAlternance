@@ -38,8 +38,8 @@ class WelcomeToTheJungleScraper(BaseScraper):
     async def scrape(self, **kwargs) -> List[Dict[str, Any]]:
         """Scrape WTTJ via Algolia search API."""
         all_offers = []
-        max_pages = kwargs.get("max_pages", 3)
-        hits_per_page = 20
+        max_pages = kwargs.get("max_pages", 15)
+        hits_per_page = 40
 
         queries = [
             "alternance",

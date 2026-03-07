@@ -26,8 +26,8 @@ class MeteojobScraper(BaseScraper):
             for term in search_terms:
                 self.logger.info(f"Meteojob: Searching all alternances (no keyword restrictions...)")
                 
-                # Fetch up to 50 pages (2500 results)
-                for page in range(1, 51):
+                # Fetch up to 150 pages (7500 results)
+                for page in range(1, 151):
                     params = {
                         "serjobsearch": "true",
                         "scoringVersion": "SERJOBSEARCH",

@@ -36,7 +36,7 @@ class HelloWorkScraper(BaseScraper):
             "keywords",
             ["alternance", "apprentissage"],
         )
-        max_pages = kwargs.get("max_pages", 2)
+        max_pages = kwargs.get("max_pages", 10)
 
         all_offers = []
         seen_ids = set()

@@ -32,9 +32,9 @@ class RHAlternanceScraper(BaseScraper):
             except Exception as e:
                 self.logger.warning(f"Failed to fetch main page for cookies: {e}")
 
-            # Fetch up to 100 pages of results (approx 2000 offers)
+            # Fetch up to 200 pages of results (approx 4000 offers)
             # User noted there are many offers and they want older ones.
-            max_pages = kwargs.get("max_pages", 60) 
+            max_pages = kwargs.get("max_pages", 200) 
             
             for page in range(1, max_pages + 1):
                 try:

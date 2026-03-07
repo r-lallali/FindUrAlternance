@@ -27,9 +27,8 @@ class ApecScraper(BaseScraper):
             for term in search_terms:
                 self.logger.info(f"Apec: Searching all alternance offers")
                 
-                # Fetch up to 50 pages (100 results per page = 5000 offers per term)
-                # Note: Apec might cap results, but we try.
-                for start_index in range(0, 5000, 100):
+                # Fetch up to 100 pages (100 results per page = 10000 offers)
+                for start_index in range(0, 10000, 100):
                     payload = {
                         "lieux": [],
                         "fonctions": [],

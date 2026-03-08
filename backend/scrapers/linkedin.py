@@ -25,7 +25,7 @@ class LinkedInScraper(BaseScraper):
     PUBLIC_URL = f"{BASE_URL}/jobs/search"
 
     HEADERS = {
-        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36",
         "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
         "Accept-Language": "fr-FR,fr;q=0.9",
         "Accept-Encoding": "gzip, deflate, br",
@@ -290,6 +290,7 @@ class LinkedInScraper(BaseScraper):
                 company = "Entreprise non renseignée"
 
             # School detection
+            description = raw_data.get("description") or ""
             is_school = is_school_offer(company, description, title)
 
             # Location

@@ -24,7 +24,7 @@ class RHAlternanceScraper(BaseScraper):
         """
         all_raw_offers = []
         
-        async with AsyncSession(impersonate="chrome110") as session:
+        async with AsyncSession(impersonate="chrome120") as session:
             # First, visit the main page to get cookies
             try:
                 await session.get(self.BASE_URL + "/jobs")
@@ -142,29 +142,45 @@ class RHAlternanceScraper(BaseScraper):
                             detail_res = await session.get(raw_offer["url"], timeout=30)
                             if detail_res.status_code == 200:
                                 detail_soup = BeautifulSoup(detail_res.text, "html.parser")
-                                # Updated description detection logic
+                                # Improved description detection: collect all relevant sections
                                 sections = detail_soup.select(".single-page-section")
-                                desc_section = None
+                                relevant_texts = []
                                 
-                                # Priority 1: Section with descriptive title
+                                target_keywords = ["descriptif", "détail", "missions", "profil", "description", "entreprise", "poste", "contexte", "rôle", "role", "attentes"]
+                                
                                 for sec in sections:
                                     h3 = sec.select_one("h3")
                                     if h3:
                                         h3_text = h3.get_text().lower()
-                                        if any(kw in h3_text for kw in ["descriptif", "détail", "missions", "profil", "description"]):
-                                            desc_section = sec
-                                            break
+                                        # Include section if it matches keywords and is not a map
+                                        if any(kw in h3_text for kw in target_keywords) and "carte" not in h3_text:
+                                            relevant_texts.append(sec.get_text(separator="\n", strip=True))
                                             
-                                # Priority 2: Section with most text content
-                                if not desc_section and sections:
-                                    desc_section = max(sections, key=lambda s: len(s.get_text()))
+                                # If still no descriptive sections found, fallback to the largest non-map section
+                                if not relevant_texts and sections:
+                                    filtered_sections = []
+                                    for s in sections:
+                                        h3 = s.select_one("h3")
+                                        if h3 and "carte" in h3.get_text().lower():
+                                            continue
+                                        filtered_sections.append(s)
+                                    
+                                    if filtered_sections:
+                                        best_sec = max(filtered_sections, key=lambda s: len(s.get_text()))
+                                        relevant_texts.append(best_sec.get_text(separator="\n", strip=True))
                                 
-                                if desc_section:
-                                    raw_offer["description"] = desc_section.get_text(separator="\n", strip=True)
+                                if relevant_texts:
+                                    raw_offer["description"] = "\n\n".join(relevant_texts)
                                 return
-                            await asyncio.sleep(0.5)
+                            
+                            self.logger.warning(f"RH Alternance: Failed to fetch {raw_offer['url']} (Status {detail_res.status_code}, attempt {retry+1})")
+                            await asyncio.sleep(1.0 * (retry + 1))
                         except Exception as e:
-                            await asyncio.sleep(1)
+                            self.logger.debug(f"RH Alternance: Error on {raw_offer['url']}: {e}")
+                            await asyncio.sleep(2.0)
+                    
+                    if not raw_offer.get("description"):
+                         self.logger.warning(f"RH Alternance: Could not extract description for {raw_offer['url']}")
 
             tasks = [fetch_description(offer) for offer in final_offers]
             await asyncio.gather(*tasks)

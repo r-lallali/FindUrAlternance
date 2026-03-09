@@ -426,7 +426,7 @@ document.addEventListener('DOMContentLoaded', () => {
         renderBarChart('chartCompanies', stats.top_companies, 'bar-2', 'keyword');
         renderBarChart('chartDepartments', stats.top_departments, 'bar-3', 'department');
         renderBarChart('chartCategories', stats.top_categories, 'bar-4', 'category');
-        renderBarChart('chartSources', stats.by_source ? Object.entries(stats.by_source).map(([n, c]) => ({ name: formatSource(n), count: c, filterValue: n })).sort((a, b) => b.count - a.count) : [], 'bar-5', 'source');
+        renderBarChart('chartSources', Object.entries(generalStats.by_source || {}).map(([n, c]) => ({ name: formatSource(n), count: c, filterValue: n })).sort((a, b) => b.count - a.count), 'bar-5', 'source');
         renderBarChart('chartTools', stats.top_tools, 'bar-6', 'technology');
         renderBarChart('chartCertifications', stats.top_certifications, 'bar-7', 'technology');
 

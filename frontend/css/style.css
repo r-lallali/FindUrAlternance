@@ -1446,48 +1446,6 @@ a:hover {
     transform: translateY(-2px);
 }
 
-/* Panel accents */
-.stats-panel:nth-child(2) {
-    border-top: 3px solid #6366f1;
-}
-
-/* Languages */
-.stats-panel:nth-child(3) {
-    border-top: 3px solid #10b981;
-}
-
-/* Companies */
-.stats-panel:nth-child(4) {
-    border-top: 3px solid #f59e0b;
-}
-
-/* Departments */
-.stats-panel:nth-child(5) {
-    border-top: 3px solid #3b82f6;
-}
-
-/* Sectors */
-.stats-panel:nth-child(6) {
-    border-top: 3px solid #06b6d4;
-}
-
-/* Sources */
-.stats-panel:nth-child(7) {
-    border-top: 3px solid #8b5cf6;
-}
-
-/* Tools */
-.stats-panel:nth-child(8) {
-    border-top: 3px solid #f43f5e;
-}
-
-/* Certs */
-.stats-panel:nth-child(9) {
-    border-top: 3px solid #84cc16;
-}
-
-/* Edu */
-
 .stats-panel-wide {
     grid-column: 1 / -1;
 }

@@ -426,9 +426,9 @@ document.addEventListener('DOMContentLoaded', () => {
             count: count,
             filterValue: name
         })).sort((a, b) => b.count - a.count);
-        renderBarChart('chartSources', sourceData, 'fw', 'source');
+        renderBarChart('chartSources', sourceData, 'source', 'source');
 
-        renderBarChart('chartTools', stats.top_tools, 'tool', 'technology');
+        renderBarChart('chartTools', stats.top_tools, 'tools', 'technology');
         renderBarChart('chartCertifications', stats.top_certifications, 'cert', 'technology');
 
         const edData = [
@@ -437,7 +437,7 @@ document.addEventListener('DOMContentLoaded', () => {
             { name: 'Bac+3 / Licence / Bachelor', count: generalStats.bac3_offers || 0, filterValue: 'bac+3' },
             { name: 'Bac+2 / BTS / DUT', count: generalStats.bac2_offers || 0, filterValue: 'bac+2' },
         ].filter(d => d.count > 0);
-        renderBarChart('chartEducation', edData, 'cert', 'profile');
+        renderBarChart('chartEducation', edData, 'edu', 'profile');
     }
 
     // ===== TIMELINE CHART =====

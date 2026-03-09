@@ -75,6 +75,9 @@
     --bar-tool: #f59e0b;
     --bar-cert: #f43f5e;
     --bar-method: #3b82f6;
+    --bar-source: #06b6d4;
+    --bar-tools: #8b5cf6;
+    --bar-edu: #f97316;
 }
 
 /* Light theme (true white) */
@@ -140,6 +143,9 @@
     --bar-tool: #f59e0b;
     --bar-cert: #f43f5e;
     --bar-method: #3b82f6;
+    --bar-source: #06b6d4;
+    --bar-tools: #8b5cf6;
+    --bar-edu: #f97316;
 }
 
 /* ===== RESET & BASE ===== */
@@ -1547,6 +1553,18 @@ a:hover {
 
 .stats-bar-fill.method {
     background: var(--bar-method);
+}
+
+.stats-bar-fill.source {
+    background: var(--bar-source);
+}
+
+.stats-bar-fill.tools {
+    background: var(--bar-tools);
+}
+
+.stats-bar-fill.edu {
+    background: var(--bar-edu);
 }
 
 .stats-bar-count {

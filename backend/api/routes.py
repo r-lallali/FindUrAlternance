@@ -232,6 +232,7 @@ def _base_query(db: Session):
     return db.query(Offer).filter(
         Offer.is_school == False,  # noqa: E712
         Offer.is_alternance == True,   # noqa: E712
+        Offer.is_active == True,  # noqa: E712
         Offer.publication_date >= three_months_ago
     )
 
@@ -870,11 +871,15 @@ async def run_global_scrape():
                     existing = bg_db.query(Offer).filter(
                         Offer.description == offer_data["description"]
                     ).first()
+                now = datetime.now(timezone.utc)
                 if not existing:
+                    offer_data["last_seen_at"] = now
                     offer = Offer(**offer_data)
                     bg_db.add(offer)
                     new_count += 1
                 else:
+                    existing.last_seen_at = now
+                    existing.is_active = True
                     if offer_data.get("description"):
                         if not existing.description or len(offer_data["description"]) > len(existing.description):
                             existing.description = offer_data["description"]
@@ -885,7 +890,7 @@ async def run_global_scrape():
                         if "confidentielle" not in offer_data["company"].lower():
                             existing.company = offer_data["company"]
                 bg_db.commit()
-            
+
             # Total offers after this source's scrape
             total_after = bg_db.query(Offer).count()
             
@@ -928,7 +933,25 @@ async def run_global_scrape():
 
     tasks = [scrape_and_save(name, cls) for name, cls in scrapers_list]
     await asyncio.gather(*tasks, return_exceptions=True)
-            
+
+    # Deactivate offers not seen in the last 36 hours (removed from source sites)
+    # Keep them in DB for historical stats (is_active=False, not deleted)
+    stale_threshold = datetime.now(timezone.utc) - timedelta(hours=36)
+    deactivate_db = SessionLocal()
+    try:
+        deactivated = deactivate_db.query(Offer).filter(
+            Offer.is_active == True,  # noqa: E712
+            Offer.last_seen_at < stale_threshold
+        ).update({"is_active": False}, synchronize_session=False)
+        deactivate_db.commit()
+        if deactivated:
+            print(f"Deactivated {deactivated} stale offers not seen in the last 36h.")
+    except Exception as e:
+        deactivate_db.rollback()
+        print(f"Error deactivating stale offers: {e}")
+    finally:
+        deactivate_db.close()
+
     global_stats_cache.clear()
     global_scraping_status["progress"] = 100
     global_scraping_status["message"] = "Terminé"
@@ -1012,11 +1035,15 @@ async def trigger_scrape(source: str, background_tasks: BackgroundTasks, db: Ses
                     existing = bg_db.query(Offer).filter(
                         Offer.description == offer_data["description"]
                     ).first()
+                now = datetime.now(timezone.utc)
                 if not existing:
+                    offer_data["last_seen_at"] = now
                     offer = Offer(**offer_data)
                     bg_db.add(offer)
                     new_count += 1
                 else:
+                    existing.last_seen_at = now
+                    existing.is_active = True
                     if offer_data.get("description"):
                         if not existing.description or len(offer_data["description"]) > len(existing.description):
                             existing.description = offer_data["description"]
@@ -1027,7 +1054,7 @@ async def trigger_scrape(source: str, background_tasks: BackgroundTasks, db: Ses
                         if "confidentielle" not in offer_data["company"].lower():
                             existing.company = offer_data["company"]
             bg_db.commit()
-            
+
             # Total offers after
             total_after = bg_db.query(Offer).count()
             

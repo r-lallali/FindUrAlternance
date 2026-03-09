@@ -52,6 +52,22 @@ async def startup():
     init_db()
     logger.info("Database initialized successfully.")
 
+    # Migrate: add is_active and last_seen_at columns if they don't exist yet
+    from sqlalchemy import text
+    from database import engine
+    with engine.connect() as conn:
+        conn.execute(text(
+            "ALTER TABLE offers ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT TRUE"
+        ))
+        conn.execute(text(
+            "ALTER TABLE offers ADD COLUMN IF NOT EXISTS last_seen_at TIMESTAMP"
+        ))
+        conn.execute(text(
+            "UPDATE offers SET last_seen_at = scraped_at WHERE last_seen_at IS NULL"
+        ))
+        conn.commit()
+    logger.info("Database migration complete (is_active, last_seen_at).")
+
     # Setup Scheduler for automatic scraping
     from apscheduler.schedulers.asyncio import AsyncIOScheduler
     from api.routes import run_global_scrape

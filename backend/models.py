@@ -59,7 +59,9 @@ class Offer(Base):
     source_id = Column(String(500), nullable=True, unique=True)
     is_school = Column(Boolean, default=False)
     is_alternance = Column(Boolean, default=True)
+    is_active = Column(Boolean, default=True, nullable=False)
     scraped_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    last_seen_at = Column(DateTime, nullable=True)
 
     favorites = relationship("Favorite", back_populates="offer", cascade="all, delete-orphan")
 

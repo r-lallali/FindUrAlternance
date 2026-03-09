@@ -14,56 +14,58 @@ from typing import Dict, List, Optional, Set
 # ────────────────────────────────────────────────────────
 
 CATEGORIES = {
-    "Software Engineering & Dev": [
-        r"\bd[eé]veloppeur\b", r"\bd[eé]veloppeuse\b", r"\bdeveloper\b", r"\bfront.?end\b", r"\bback.?end\b",
-        r"\bfull.?stack\b", r"\bing[eé]nieur (t[eé]tude|logiciel|d[eé]veloppement)\b", r"\bsoftware engineer\b",
-        r"\bwebmaster\b", r"\bint[eé]grateur\b", r"\bprogrammeur\b", r"\btech lead\b"
+    "Administration & Comptabilité": [
+        r"\bpaie\b", r"\badministration du personnel\b", r"\badministratif\b", r"\badministrative\b",
+        r"\bsecr[eé]taire\b", r"\bcomptabilit[eé]\b", r"\bcomptable\b", r"\bassistant(e) de direction\b",
+        r"\bassistant(e) de gestion\b", r"\bfacturation\b", r"\bsaisie\b"
     ],
-    "Data & IA": [
+    "Cloud, Infrastructure & Cybersécurité": [
+        r"\binfrastructure\b", r"\bsyst[eè]me(s)?\b", r"\br[eé]zeau(x)?\b", r"\bcloud\b", r"\bdevops\b",
+        r"\bing[eé]nieur d[eé]ploiement\b", r"\badministrateur\b", r"\bsysadmin\b", r"\barchitecte\b",
+        r"\bs[eé]curit[eé]\b", r"\bcybers[eé]curit[eé]\b", r"\bcyber\b", r"\bsecops\b", r"\bazure\b", r"\baws\b"
+    ],
+    "Conseil & Gestion de Projet": [
+        r"\bchef(fe)? de projet\b", r"\bproject manager\b", r"\bpmo\b", r"\bma[iî]trise d.?ouvrage\b",
+        r"\bmoa\b", r"\bama\b", r"\bamoe\b", r"\bconsultant(e)?\b", r"\bsyst[eè]me d.information\b",
+        r"\berp\b", r"\bsap\b", r"\btransformation digitale\b", r"\bscrum master\b", r"\bagile\b"
+    ],
+    "Data, IA & Business Intelligence": [
         r"\bdata\b", r"\bdonn[eé]es\b", r"\bmachine learning\b", r"\bintelligence artificielle\b", r"\bia\b",
         r"\bi\.a\.\b", r"\bbig data\b", r"\bdata analyst\b", r"\bdata scientist\b", r"\banalyste de donn[eé]es\b",
-        r"\bbing data engineer\b", r"\bdata engineer\b", r"\bbusiness intelligence\b", r"\bbi\b"
+        r"\bdata engineer\b", r"\bbusiness intelligence\b", r"\bbi\b", r"\betl\b"
     ],
-    "Cloud, Infra & Cybersecurity": [
-        r"\binfrastructure\b", r"\bsyst[eè]me(s)?\b", r"\br[eé]seau(x)?\b", r"\bcloud\b", r"\bdevops\b",
-        r"\bing[eé]nieur d[eé]ploiement\b", r"\badministrateur\b", r"\bsysadmin\b", r"\barchitecte\b",
-        r"\bmaintenance\b", r"\bs[eé]curit[eé]\b", r"\bcybers[eé]curit[eé]\b", r"\bcyber\b", r"\bsecops\b"
+    "Développement Software & Web": [
+        r"\bd[eé]veloppeur\b", r"\bd[eé]veloppeuse\b", r"\bdeveloper\b", r"\bfront.?end\b", r"\bback.?end\b",
+        r"\bfull.?stack\b", r"\bing[eé]nieur logicielle?\b", r"\bsoftware engineer\b", r"\bwebmaster\b",
+        r"\btech lead\b", r"\bprogrammeur\b", r"\bint[eé]grateur\b"
     ],
-    "Product & Design": [
-        r"\bux\b", r"\bui\b", r"\bdesign\b", r"\bdesigner\b", r"\bproduct owner\b", r"\bproduct manager\b",
-        r"\bproduit\b", r"\bchef(fe)? de produit\b", r"\bwebdesigner\b", r"\bint[eé]rface\b"
+    "Finance & Audit": [
+        r"\bfinance\b", r"\bcontr[ôo]leur de gestion\b", r"\baudit\b", r"\btr[eé]sorerie\b", r"\bbanque\b",
+        r"\bassurance\b", r"\banalyste financier\b", r"\binvestissement\b", r"\bcash management\b"
     ],
-    "Marketing & Communication": [
+    "Marketing, Com & Digital": [
         r"\bmarketing\b", r"\bdigital\b", r"\bseo\b", r"\bsea\b", r"\bcommunity manager\b", r"\btraffic manager\b",
-        r"\be-commerce\b", r"\bacquisition\b", r"\bcro\b", r"\bstrat[eé]gie digitale\b",
-        r"\bcommunication\b", r"\bcomm\b", r"\bcr[eé]ation\b", r"\bcontenu\b", r"\bcontent manager\b",
-        r"\bgraphiste\b", r"\bdirecteur artistique\b", r"\b[eé]v[eé]nementiel\b", r"\bévenement\b"
+        r"\be-commerce\b", r"\bacquisition\b", r"\bcommunication\b", r"\bcomm\b", r"\bcr[eé]ation\b",
+        r"\bcontent manager\b", r"\bgraphiste\b", r"\bdirecteur artistique\b", r"\b[eé]v[eé]nementiel\b"
     ],
-    "Business & Sales": [
-        r"\bvente\b", r"\bcommerce\b", r"\bcommercial(e)?\b", r"\brelation client\b", r"\bbusiness developer\b",
-        r"\bsales\b", r"\baccount manager\b", r"\bcharg[eé](e)? d.?affaires\b", r"\bconseiller\b", r"\bvendeur\b",
-        r"\bvendeuse\b", r"\bb2b\b", r"\bb2c\b"
+    "Produit & UX/UI Design": [
+        r"\bux\b", r"\bui\b", r"\bdesign\b", r"\bdesigner\b", r"\bproduct owner\b", r"\bproduct manager\b",
+        r"\bproduit\b", r"\bchef(fe)? de produit\b", r"\bwebdesigner\b", r"\bmaquettage\b"
     ],
-    "Support & IT Operations": [
+    "Ressources Humaines & Recrutement": [
+        r"\brecruteur\b", r"\brh\b", r"\bressources humaines\b", r"\btalent acquisition\b", r"\bsourcing\b",
+        r"\bcharg[eé](e)? de recrutement\b", r"\bformation\b", r"\bgestion des talents\b", r"\bdrh\b"
+    ],
+    "Support, Maintenance & IT Ops": [
         r"\bsupport\b", r"\bhelp desk\b", r"\bassistance technique\b", r"\btechnicien(ne)?\b",
-        r"\bmaintenance informatique\b", r"\bd[eé]pannage\b", r"\bservice client\b", r"\bniveau 1\b", r"\bniveau 2\b"
+        r"\bmaintenance informatique\b", r"\bd[eé]pannage\b", r"\bservice client\b"
     ],
-    "Project Management & Consulting": [
-        r"\bchef(fe)? de projet\b", r"\bproject manager\b", r"\bpmo\b", r"\bma[iî]trise d.?ouvrage\b",
-        r"\bmoa\b", r"\bama\b", r"\bamoe\b", r"\bma[iî]trise d.?oeuvre\b", r"\bamoa\b", r"\bscrum master\b",
-        r"\bagile\b", r"\bcoordination\b", r"\bdirecteur de projet\b",
-        r"\bconsultant(e)?\b", r"\bsyst[eè]me d.information\b", r"\berp\b", r"\bsap\b", r"\burbaniste\b",
-        r"\btransformation digitale\b", r"\bdigitalisation\b", r"\bcrm\b"
-    ],
-    "Corporate (RH, Finance, Admin)": [
-        r"\brecruteur\b", r"\brh\b", r"\bressources humaines\b", r"\bchasseur de t[eê]tes\b", r"\btalent acquisition\b",
-        r"\bsourcing\b", r"\bcharg[eé](e)? de recrutement\b", r"\bpaie\b", r"\badministration du personnel\b",
-        r"\bformation\b", r"\bgestion des talents\b",
-        r"\bgestion\b", r"\bfinance\b", r"\bcomptabilit[eé]\b", r"\bcomptable\b", r"\bcontr[ôo]leur de gestion\b",
-        r"\bassistant(e) de direction\b", r"\bassistant(e) de gestion\b", r"\badministratif\b", r"\badministrative\b",
-        r"\bsecr[eé]taire\b", r"\baudit\b", r"\btr[eé]sorerie\b", r"\bbanque\b", r"\bassurance\b"
+    "Vente & Business Development": [
+        r"\bvente\b", r"\bcommerce\b", r"\bcommercial(e)?\b", r"\brelation client\b", r"\bbusiness developer\b",
+        r"\bsales\b", r"\baccount manager\b", r"\bcharg[eé](e)? d.?affaires\b", r"\badv\b"
     ]
 }
+
 
 
 # ────────────────────────────────────────────────────────

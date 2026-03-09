@@ -412,13 +412,39 @@ document.addEventListener('DOMContentLoaded', () => {
     function renderStatsUI(stats, generalStats, silent) {
         if (!stats || !generalStats) return;
 
+        // Populate KPI cards at the top
+        const statsHeader = document.querySelector('.stats-header');
+        if (statsHeader) {
+            statsHeader.style.display = 'flex';
+            statsHeader.innerHTML = `
+                <div class="kpi-row">
+                    <div class="kpi-card blue">
+                        <div class="kpi-label">Total des offres</div>
+                        <div class="kpi-value">${formatNumber(generalStats.total_offers)}</div>
+                    </div>
+                    <div class="kpi-card green">
+                        <div class="kpi-label">Dernières 24h</div>
+                        <div class="kpi-value">${formatNumber(generalStats.recent_24h)}</div>
+                    </div>
+                    <div class="kpi-card amber">
+                        <div class="kpi-label">Offres IT / Dev</div>
+                        <div class="kpi-value">${formatNumber(generalStats.it_offers)}</div>
+                    </div>
+                    <div class="kpi-card purple">
+                        <div class="kpi-label">Bac+5 / Master</div>
+                        <div class="kpi-value">${formatNumber(generalStats.bac5_offers)}</div>
+                    </div>
+                </div>
+            `;
+        }
+
         // Load timeline chart (it has its own caching)
         loadTimelineChart(silent);
 
-        renderBarChart('chartCompanies', stats.top_companies, 'fw', 'keyword');
-        renderBarChart('chartDepartments', stats.top_departments, 'tool', 'department');
-        renderBarChart('chartCategories', stats.top_categories, 'method', 'category');
-        renderBarChart('chartLanguages', stats.top_languages, 'lang', 'technology');
+        renderBarChart('chartCompanies', stats.top_companies, null, 'keyword');
+        renderBarChart('chartDepartments', stats.top_departments, null, 'department');
+        renderBarChart('chartCategories', stats.top_categories, null, 'category');
+        renderBarChart('chartLanguages', stats.top_languages, null, 'technology');
 
         // Sources distribution
         const sourceData = Object.entries(generalStats.by_source || {}).map(([name, count]) => ({
@@ -426,10 +452,10 @@ document.addEventListener('DOMContentLoaded', () => {
             count: count,
             filterValue: name
         })).sort((a, b) => b.count - a.count);
-        renderBarChart('chartSources', sourceData, 'source', 'source');
+        renderBarChart('chartSources', sourceData, null, 'source');
 
-        renderBarChart('chartTools', stats.top_tools, 'tools', 'technology');
-        renderBarChart('chartCertifications', stats.top_certifications, 'cert', 'technology');
+        renderBarChart('chartTools', stats.top_tools, null, 'technology');
+        renderBarChart('chartCertifications', stats.top_certifications, null, 'technology');
 
         const edData = [
             { name: 'Bac+5 / Master / Ingénieur', count: generalStats.bac5_offers || 0, filterValue: 'bac+5' },
@@ -437,7 +463,7 @@ document.addEventListener('DOMContentLoaded', () => {
             { name: 'Bac+3 / Licence / Bachelor', count: generalStats.bac3_offers || 0, filterValue: 'bac+3' },
             { name: 'Bac+2 / BTS / DUT', count: generalStats.bac2_offers || 0, filterValue: 'bac+2' },
         ].filter(d => d.count > 0);
-        renderBarChart('chartEducation', edData, 'edu', 'profile');
+        renderBarChart('chartEducation', edData, null, 'profile');
     }
 
     // ===== TIMELINE CHART =====
@@ -966,21 +992,23 @@ document.addEventListener('DOMContentLoaded', () => {
         timelineObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
     }
 
-    function renderBarChart(containerId, data, cssClass, filterType) {
+    function renderBarChart(containerId, data, _unused_class, filterType) {
         const container = document.getElementById(containerId);
         if (!data || data.length === 0) {
             container.innerHTML = '<div class="stats-empty">Aucune donnée disponible.</div>';
             return;
         }
         const maxCount = Math.max(...data.map((d) => d.count));
-        container.innerHTML = data.map((item) => {
+        container.innerHTML = data.map((item, index) => {
             const pct = Math.max(2, (item.count / maxCount) * 100);
             const filterValue = item.filterValue || item.name;
+            // Use cycling color classes bar-1 to bar-10
+            const barClass = `bar-${(index % 10) + 1}`;
             return `
                 <div class="stats-bar-row clickable" data-filter-type="${filterType || ''}" data-filter-value="${escapeHtml(filterValue)}" title="Voir les offres : ${escapeHtml(item.name)}">
                     <span class="stats-bar-name" title="${escapeHtml(item.name)}">${escapeHtml(item.name)}</span>
                     <div class="stats-bar-track">
-                        <div class="stats-bar-fill ${cssClass}" style="width: ${pct}%"></div>
+                        <div class="stats-bar-fill ${barClass}" style="width: ${pct}%"></div>
                     </div>
                     <span class="stats-bar-count">${item.count}</span>
                 </div>`;
@@ -996,8 +1024,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             });
         });
-
-
     }
 
     /**

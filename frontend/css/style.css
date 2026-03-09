@@ -67,17 +67,27 @@
     --tag-cert-border: rgba(244, 63, 94, 0.2);
     --tag-method-bg: rgba(59, 130, 246, 0.12);
     --tag-method-text: #93c5fd;
-    --tag-method-border: rgba(59, 130, 246, 0.2);
-
-    /* Bar chart fills */
-    --bar-lang: #6366f1;
-    --bar-fw: #10b981;
-    --bar-tool: #f59e0b;
-    --bar-cert: #f43f5e;
-    --bar-method: #3b82f6;
-    --bar-source: #06b6d4;
-    --bar-tools: #8b5cf6;
-    --bar-edu: #84cc16;
+    /* Bar chart fills - Dynamic Palette */
+    --bar-1: #3b82f6;
+    /* Blue */
+    --bar-2: #10b981;
+    /* Emerald */
+    --bar-3: #f59e0b;
+    /* Amber */
+    --bar-4: #f43f5e;
+    /* Rose */
+    --bar-5: #8b5cf6;
+    /* Violet */
+    --bar-6: #06b6d4;
+    /* Cyan */
+    --bar-7: #ec4899;
+    /* Pink */
+    --bar-8: #f97316;
+    /* Orange */
+    --bar-9: #84cc16;
+    /* Lime */
+    --bar-10: #6366f1;
+    /* Indigo */
 }
 
 /* Light theme (true white) */
@@ -137,15 +147,17 @@
     --tag-method-text: #1d4ed8;
     --tag-method-border: rgba(37, 99, 235, 0.15);
 
-    /* Bar chart fills */
-    --bar-lang: #6366f1;
-    --bar-fw: #10b981;
-    --bar-tool: #f59e0b;
-    --bar-cert: #f43f5e;
-    --bar-method: #3b82f6;
-    --bar-source: #06b6d4;
-    --bar-tools: #8b5cf6;
-    --bar-edu: #84cc16;
+    /* Bar chart fills - Dynamic Palette */
+    --bar-1: #2563eb;
+    --bar-2: #059669;
+    --bar-3: #d97706;
+    --bar-4: #dc2626;
+    --bar-5: #7c3aed;
+    --bar-6: #0891b2;
+    --bar-7: #db2777;
+    --bar-8: #ea580c;
+    --bar-9: #65a30d;
+    --bar-10: #4f46e5;
 }
 
 /* ===== RESET & BASE ===== */
@@ -1337,7 +1349,70 @@ a:hover {
 }
 
 .stats-header {
-    padding: 12px 0 4px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.kpi-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 12px;
+}
+
+.kpi-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    transition: transform var(--transition-fast), border-color var(--transition-fast);
+}
+
+.kpi-card:hover {
+    border-color: var(--border-hover);
+    transform: translateY(-2px);
+}
+
+.kpi-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.kpi-value {
+    font-size: 24px;
+    font-weight: 800;
+    color: var(--text-primary);
+}
+
+.kpi-card.blue {
+    border-left: 4px solid #3b82f6;
+}
+
+.kpi-card.green {
+    border-left: 4px solid #10b981;
+}
+
+.kpi-card.amber {
+    border-left: 4px solid #f59e0b;
+}
+
+.kpi-card.indigo {
+    border-left: 4px solid #6366f1;
+}
+
+.kpi-card.purple {
+    border-left: 4px solid #8b5cf6;
+}
+
+.kpi-card.rose {
+    border-left: 4px solid #f43f5e;
 }
 
 .stats-header h2 {
@@ -1370,6 +1445,48 @@ a:hover {
     border-color: var(--border-hover);
     transform: translateY(-2px);
 }
+
+/* Panel accents */
+.stats-panel:nth-child(2) {
+    border-top: 3px solid #6366f1;
+}
+
+/* Languages */
+.stats-panel:nth-child(3) {
+    border-top: 3px solid #10b981;
+}
+
+/* Companies */
+.stats-panel:nth-child(4) {
+    border-top: 3px solid #f59e0b;
+}
+
+/* Departments */
+.stats-panel:nth-child(5) {
+    border-top: 3px solid #3b82f6;
+}
+
+/* Sectors */
+.stats-panel:nth-child(6) {
+    border-top: 3px solid #06b6d4;
+}
+
+/* Sources */
+.stats-panel:nth-child(7) {
+    border-top: 3px solid #8b5cf6;
+}
+
+/* Tools */
+.stats-panel:nth-child(8) {
+    border-top: 3px solid #f43f5e;
+}
+
+/* Certs */
+.stats-panel:nth-child(9) {
+    border-top: 3px solid #84cc16;
+}
+
+/* Edu */
 
 .stats-panel-wide {
     grid-column: 1 / -1;
@@ -1533,38 +1650,47 @@ a:hover {
     height: 100%;
     border-radius: 4px;
     min-width: 2px;
+    transition: width 0.6s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-.stats-bar-fill.lang {
-    background: var(--bar-lang);
+.stats-bar-fill.bar-1 {
+    background: var(--bar-1);
 }
 
-.stats-bar-fill.fw {
-    background: var(--bar-fw);
+.stats-bar-fill.bar-2 {
+    background: var(--bar-2);
 }
 
-.stats-bar-fill.tool {
-    background: var(--bar-tool);
+.stats-bar-fill.bar-3 {
+    background: var(--bar-3);
 }
 
-.stats-bar-fill.cert {
-    background: var(--bar-cert);
+.stats-bar-fill.bar-4 {
+    background: var(--bar-4);
 }
 
-.stats-bar-fill.method {
-    background: var(--bar-method);
+.stats-bar-fill.bar-5 {
+    background: var(--bar-5);
 }
 
-.stats-bar-fill.source {
-    background: var(--bar-source);
+.stats-bar-fill.bar-6 {
+    background: var(--bar-6);
 }
 
-.stats-bar-fill.tools {
-    background: var(--bar-tools);
+.stats-bar-fill.bar-7 {
+    background: var(--bar-7);
 }
 
-.stats-bar-fill.edu {
-    background: var(--bar-edu);
+.stats-bar-fill.bar-8 {
+    background: var(--bar-8);
+}
+
+.stats-bar-fill.bar-9 {
+    background: var(--bar-9);
+}
+
+.stats-bar-fill.bar-10 {
+    background: var(--bar-10);
 }
 
 .stats-bar-count {

@@ -62,8 +62,12 @@ class LinkedInScraper(BaseScraper):
             geo_id: str - LinkedIn geo ID (default: France)
         """
         search_terms = kwargs.get("search_terms", self.SEARCH_TERMS)
-        max_pages = kwargs.get("max_pages", 5)
-        geo_id = kwargs.get("geo_id", self.GEO_IDS["France"])
+        max_pages = kwargs.get("max_pages", 8)
+
+        # Search nationally + in top cities to maximize coverage
+        # (LinkedIn caps results per query, so multiple geos yield more unique offers)
+        TOP_CITY_GEOS = ["France", "Paris", "Lyon", "Marseille", "Toulouse", "Lille"]
+        geo_ids_to_search = [self.GEO_IDS[city] for city in TOP_CITY_GEOS if city in self.GEO_IDS]
 
         all_offers = []
         seen_ids = set()
@@ -73,35 +77,36 @@ class LinkedInScraper(BaseScraper):
             headers=self.HEADERS,
             follow_redirects=True,
         ) as client:
-            for term in search_terms:
-                for page in range(max_pages):
-                    try:
-                        start = page * 25  # LinkedIn uses 25 per page
-                        offers = await self._search_page(client, term, geo_id, start)
+            for geo_id in geo_ids_to_search:
+                for term in search_terms:
+                    for page in range(max_pages):
+                        try:
+                            start = page * 25  # LinkedIn uses 25 per page
+                            offers = await self._search_page(client, term, geo_id, start)
 
-                        # Fetch descriptions with concurrency limit to avoid 429
-                        semaphore = asyncio.Semaphore(5)
+                            # Fetch descriptions with concurrency limit to avoid 429
+                            semaphore = asyncio.Semaphore(5)
 
-                        async def enrich_desc(off):
-                            j_id = off.get("_id")
-                            if j_id:
-                                async with semaphore:
-                                    off["description"] = await self._fetch_description(client, j_id)
-                            return off
+                            async def enrich_desc(off):
+                                j_id = off.get("_id")
+                                if j_id:
+                                    async with semaphore:
+                                        off["description"] = await self._fetch_description(client, j_id)
+                                return off
 
-                        tasks = [enrich_desc(o) for o in offers]
-                        enriched_offers = await asyncio.gather(*tasks)
+                            tasks = [enrich_desc(o) for o in offers]
+                            enriched_offers = await asyncio.gather(*tasks)
 
-                        for offer in enriched_offers:
-                            oid = offer.get("_id", "")
-                            if oid and oid not in seen_ids:
-                                seen_ids.add(oid)
-                                all_offers.append(offer)
+                            for offer in enriched_offers:
+                                oid = offer.get("_id", "")
+                                if oid and oid not in seen_ids:
+                                    seen_ids.add(oid)
+                                    all_offers.append(offer)
 
-                        # Rate limiting (increased to be more respectfull/stealthy)
-                        await asyncio.sleep(5.0)
-                    except Exception as e:
-                        self.logger.warning(f"Error on LinkedIn page {page} for '{term}': {e}")
+                            # Rate limiting (increased to be more respectfull/stealthy)
+                            await asyncio.sleep(5.0)
+                        except Exception as e:
+                            self.logger.warning(f"Error on LinkedIn page {page} for '{term}' geo={geo_id}: {e}")
 
         self.logger.info(f"LinkedIn: {len(all_offers)} unique offers collected")
         return all_offers

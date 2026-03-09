@@ -30,6 +30,8 @@ class FranceTravailScraper(BaseScraper):
     SEARCH_TERMS = [
         "alternance",
         "apprentissage",
+        "contrat apprentissage",
+        "formation alternance",
     ]
 
     def __init__(self):
@@ -44,7 +46,7 @@ class FranceTravailScraper(BaseScraper):
             max_pages: int - Max pages per search term (default: 3)
         """
         search_terms = kwargs.get("search_terms", self.SEARCH_TERMS[:5])
-        max_pages = kwargs.get("max_pages", 10)
+        max_pages = kwargs.get("max_pages", 25)
 
         all_offers = []
         seen_ids = set()

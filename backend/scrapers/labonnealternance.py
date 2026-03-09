@@ -64,7 +64,7 @@ class LaBonneAlternanceScraper(BaseScraper):
             rome_codes: list - Specific ROME codes to search
             radius: int - Search radius in km (default: 100)
         """
-        cities = kwargs.get("cities", self.CITIES[:5])  # Top 5 cities by default
+        cities = kwargs.get("cities", self.CITIES)  # All 10 cities
         radius = kwargs.get("radius", 100)
         rome_codes = kwargs.get("rome_codes", None)
 

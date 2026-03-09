@@ -38,20 +38,20 @@ class WelcomeToTheJungleScraper(BaseScraper):
     async def scrape(self, **kwargs) -> List[Dict[str, Any]]:
         """Scrape WTTJ via Algolia search API."""
         all_offers = []
-        max_pages = kwargs.get("max_pages", 15)
+        max_pages = kwargs.get("max_pages", 30)
         hits_per_page = 40
 
-        queries = [
-            "alternance",
-            "apprentissage",
-        ]
+        # Keyword queries + one facet-only query to capture alternance offers
+        # that don't mention the word "alternance" in their title/description
+        keyword_queries = ["alternance", "apprentissage"]
+        FACET_FILTER = [["contract_type:Alternance", "contract_type:Apprentissage"]]
 
         seen_ids = set()
 
         async with httpx.AsyncClient(timeout=30.0) as client:
             semaphore = asyncio.Semaphore(5)
 
-            async def fetch_page(query: str, page: int):
+            async def fetch_page(query: str, page: int, facet_filter=None):
                 async with semaphore:
                     try:
                         payload = {
@@ -59,6 +59,8 @@ class WelcomeToTheJungleScraper(BaseScraper):
                             "hitsPerPage": hits_per_page,
                             "page": page,
                         }
+                        if facet_filter:
+                            payload["facetFilters"] = facet_filter
                         res = await client.post(
                             self.ALGOLIA_URL,
                             json=payload,
@@ -80,9 +82,12 @@ class WelcomeToTheJungleScraper(BaseScraper):
                         return []
 
             tasks = []
-            for query in queries:
+            for query in keyword_queries:
                 for page in range(0, max_pages):
                     tasks.append(fetch_page(query, page))
+            # Facet-only pass: capture offers not matched by keyword search
+            for page in range(0, max_pages):
+                tasks.append(fetch_page("", page, facet_filter=FACET_FILTER))
 
             results = await asyncio.gather(*tasks, return_exceptions=True)
             for hits in results:

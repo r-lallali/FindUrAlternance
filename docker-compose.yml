@@ -1,0 +1,37 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    container_name: fua-backend
+    ports:
+      - "3080:3080"
+    environment:
+      - DATABASE_URL=${DATABASE_URL:-postgresql://postgres:ifr9kfu5xlkizn6x@51.210.6.173:5431/fua}
+      - TZ=Europe/Paris
+    volumes:
+      - ./data:/app/data
+    restart: always
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:3080/api/scrape/status" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+# Si vous souhaitez également héberger la base de données sur le même serveur :
+#  db:
+#    image: postgres:15
+#    container_name: fua-db
+#    environment:
+#      - POSTGRES_USER=postgres
+#      - POSTGRES_PASSWORD=your_password
+#      - POSTGRES_DB=fua
+#    volumes:
+#      - postgres_data:/var/lib/postgresql/data
+#    ports:
+#      - "5432:5432"
+#    restart: always
+
+# volumes:
+#   postgres_data:

@@ -934,18 +934,22 @@ async def run_global_scrape():
     tasks = [scrape_and_save(name, cls) for name, cls in scrapers_list]
     await asyncio.gather(*tasks, return_exceptions=True)
 
-    # Deactivate offers not seen in the last 36 hours (removed from source sites)
-    # Keep them in DB for historical stats (is_active=False, not deleted)
+    # Deactivate offers not seen in the last 36 hours — only for exhaustive scrapers
+    # (scrapers that fetch ALL offers, not just the first N pages).
+    # Non-exhaustive scrapers (linkedin, wttj, hellowork, francetravail, labonnealternance)
+    # rely on the existing 90-day publication_date expiry to avoid false deactivations.
+    EXHAUSTIVE_SOURCES = {"apec", "meteojob", "rhalternance"}
     stale_threshold = datetime.now(timezone.utc) - timedelta(hours=36)
     deactivate_db = SessionLocal()
     try:
         deactivated = deactivate_db.query(Offer).filter(
             Offer.is_active == True,  # noqa: E712
+            Offer.source.in_(EXHAUSTIVE_SOURCES),
             Offer.last_seen_at < stale_threshold
         ).update({"is_active": False}, synchronize_session=False)
         deactivate_db.commit()
         if deactivated:
-            print(f"Deactivated {deactivated} stale offers not seen in the last 36h.")
+            print(f"Deactivated {deactivated} stale offers (exhaustive sources) not seen in the last 36h.")
     except Exception as e:
         deactivate_db.rollback()
         print(f"Error deactivating stale offers: {e}")

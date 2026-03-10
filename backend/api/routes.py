@@ -935,9 +935,10 @@ async def run_global_scrape():
                                 existing.description = offer_data["description"]
                         if offer_data.get("publication_date"):
                             existing.publication_date = offer_data["publication_date"]
-                        # Update company name if old one was generic
-                        if offer_data.get("company") and "confidentielle" in (existing.company or "").lower():
-                            if "confidentielle" not in offer_data["company"].lower():
+                        # Update company name if old one was generic or a known intermediary program
+                        _GENERIC = {"confidentielle", "engagement jeunes", "talents handicap", "groupe talents handicap"}
+                        if offer_data.get("company") and any(g in (existing.company or "").lower() for g in _GENERIC):
+                            if not any(g in offer_data["company"].lower() for g in _GENERIC):
                                 existing.company = offer_data["company"]
                     bg_db.commit()
 

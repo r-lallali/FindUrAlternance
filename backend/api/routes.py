@@ -21,7 +21,6 @@ from schemas import (
     FavoriteCreate, FavoriteUpdate, FavoriteResponse,
 )
 from auth import hash_password, verify_password, create_token, get_current_user, get_optional_user
-from scrapers.utils import normalize_company
 
 router = APIRouter(prefix="/api", tags=["offers"])
 
@@ -686,24 +685,15 @@ async def get_tech_stats(
     match_list = []
     it_offers_count = 0
 
-    # Map: normalized_company → canonical display name (first seen, i.e. most frequent)
-    norm_to_display: dict = {}
-
     for langs, fws, tools, certs, methods, company, title, desc_text, dept, cat in all_data:
-        # 1. Process Metadata — group company variants under the same normalized key
-        if company:
-            norm = normalize_company(company)
-            if norm:
-                # Keep whichever name was seen first as display name
-                if norm not in norm_to_display:
-                    norm_to_display[norm] = company.strip()
-                company_field_counter.update([norm])
+        # 1. Process Metadata
+        if company: company_field_counter.update([company.strip()])
         if dept: dept_counter.update([dept.strip()])
         if cat: cat_counter.update([cat.strip()])
-        
+
         # 2. Process Skills
         has_skills = False
-        for data, counter in [(langs, lang_counter), (fws, fw_counter), (tools, tool_counter), 
+        for data, counter in [(langs, lang_counter), (fws, fw_counter), (tools, tool_counter),
                              (certs, cert_counter), (methods, method_counter)]:
             if data:
                 try:
@@ -712,9 +702,9 @@ async def get_tech_stats(
                         counter.update(items)
                         if items: has_skills = True
                 except Exception: pass
-        
+
         if has_skills: it_offers_count += 1
-        
+
         # 3. Store normalized data for later accurate company searching
         match_list.append({
             "comp_normalized": company.lower().strip() if company else "",
@@ -722,11 +712,21 @@ async def get_tech_stats(
             "desc_normalized": desc_text.lower() if desc_text else ""
         })
 
-    # 4. Build top companies using normalized counts → display names
-    top_companies_resolved = [
-        {"name": norm_to_display.get(norm, norm), "count": count}
-        for norm, count in company_field_counter.most_common(15)
-    ]
+    # 4. Resolve accurate company counts (Top 15 names, but counts include mentions)
+    top15_names = [name for name, _ in company_field_counter.most_common(15)]
+    top_companies_resolved = []
+
+    for name in top15_names:
+        lower_name = name.lower()
+        accurate_count = 0
+        for m in match_list:
+            if (lower_name in m["comp_normalized"] or
+                lower_name in m["title_normalized"] or
+                lower_name in m["desc_normalized"]):
+                accurate_count += 1
+        top_companies_resolved.append({"name": name, "count": accurate_count})
+
+    top_companies_resolved.sort(key=lambda x: x["count"], reverse=True)
 
     def format_counter(counter, limit=15):
         return [{"name": name, "count": count} for name, count in counter.most_common(limit)]
@@ -892,16 +892,12 @@ async def run_global_scrape():
                         ).first()
 
                     if not existing:
-                        # Same title + dept: match if normalized company names are equal
-                        norm_new = normalize_company(offer_data.get("company"))
-                        candidates = bg_db.query(Offer).filter(
+                        # Content-based duplicate: exact title + company + dept
+                        existing = bg_db.query(Offer).filter(
                             Offer.title == offer_data.get("title"),
-                            Offer.department == offer_data.get("department"),
-                        ).all()
-                        for c in candidates:
-                            if normalize_company(c.company) == norm_new:
-                                existing = c
-                                break
+                            Offer.company == offer_data.get("company"),
+                            Offer.department == offer_data.get("department")
+                        ).first()
 
                     if not existing and offer_data.get("description"):
                         # Exact description match across sources
@@ -1078,16 +1074,12 @@ async def trigger_scrape(source: str, background_tasks: BackgroundTasks, db: Ses
                     ).first()
                 
                 if not existing:
-                    # Same title + dept: match if normalized company names are equal
-                    norm_new = normalize_company(offer_data.get("company"))
-                    candidates = bg_db.query(Offer).filter(
+                    # Content-based duplicate: exact title + company + dept
+                    existing = bg_db.query(Offer).filter(
                         Offer.title == offer_data.get("title"),
-                        Offer.department == offer_data.get("department"),
-                    ).all()
-                    for c in candidates:
-                        if normalize_company(c.company) == norm_new:
-                            existing = c
-                            break
+                        Offer.company == offer_data.get("company"),
+                        Offer.department == offer_data.get("department")
+                    ).first()
 
                 if not existing and offer_data.get("description"):
                     # Exact description match across sources
@@ -1419,6 +1411,7 @@ async def fix_company_duplicates(db: Session = Depends(get_db), _: None = Depend
     (e.g. 'TF1' vs 'Groupe TF1'). Keeps the oldest offer, soft-deletes the newer ones.
     """
     from difflib import SequenceMatcher
+    from scrapers.utils import normalize_company
 
     # Load all active offers with title, company, department, description
     offers = db.query(Offer).filter(Offer.is_active == True).order_by(Offer.scraped_at.asc()).all()  # noqa: E712

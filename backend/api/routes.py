@@ -58,6 +58,9 @@ class StatsCache:
 
 global_stats_cache = StatsCache()
 
+# Scheduler instance set by main.py on startup
+scheduler = None
+
 
 # ═══════════════════════════════════════════════════════
 # AUTH ENDPOINTS
@@ -817,6 +820,20 @@ async def health():
 async def get_scrape_status(_: None = Depends(verify_admin_key)):
     """Get the current background scraping status."""
     return global_scraping_status
+
+
+@router.get("/scrape/next")
+async def get_next_scrape(_: None = Depends(verify_admin_key)):
+    """Get the next scheduled scrape time."""
+    if scheduler is None:
+        return {"next_run": None, "message": "Scheduler non initialisé"}
+    job = scheduler.get_job("global_scrape_job")
+    if job is None or job.next_run_time is None:
+        return {"next_run": None, "message": "Aucun scraping planifié"}
+    return {
+        "next_run": job.next_run_time.isoformat(),
+        "next_run_human": job.next_run_time.strftime("%Y-%m-%d %H:%M:%S %Z"),
+    }
 
 async def run_global_scrape():
     """Logic for full system scrape, used by API and Scheduler."""

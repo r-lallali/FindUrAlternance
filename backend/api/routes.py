@@ -1448,3 +1448,42 @@ async def fix_company_duplicates(db: Session = Depends(get_db), _: None = Depend
         "merged": len(to_deactivate),
         "message": f"{len(to_deactivate)} doublons inter-sources désactivés (noms d'entreprise normalisés)."
     }
+
+@router.post("/admin/cleanup-school-offers")
+async def cleanup_school_offers(db: Session = Depends(get_db), _: None = Depends(verify_admin_key)):
+    """
+    Re-run school detection on all active offers and deactivate those that are from schools/training orgs.
+    Also re-runs alternance validation to deactivate non-alternance offers.
+    """
+    from scrapers.utils import is_school_offer
+    from scrapers.skills_extractor import is_alternance_offer
+
+    offers = db.query(Offer).filter(Offer.is_active == True).all()  # noqa: E712
+
+    school_ids = []
+    non_alternance_ids = []
+
+    for offer in offers:
+        if is_school_offer(offer.company or "", offer.description or "", offer.title or ""):
+            school_ids.append(offer.id)
+        elif not is_alternance_offer(offer.title or "", offer.description or "", offer.contract_type):
+            non_alternance_ids.append(offer.id)
+
+    if school_ids:
+        db.query(Offer).filter(Offer.id.in_(school_ids)).update(
+            {"is_active": False, "is_school": True}, synchronize_session=False
+        )
+    if non_alternance_ids:
+        db.query(Offer).filter(Offer.id.in_(non_alternance_ids)).update(
+            {"is_active": False, "is_alternance": False}, synchronize_session=False
+        )
+
+    db.commit()
+    global_stats_cache.clear()
+
+    return {
+        "school_deactivated": len(school_ids),
+        "non_alternance_deactivated": len(non_alternance_ids),
+        "total_deactivated": len(school_ids) + len(non_alternance_ids),
+        "message": f"{len(school_ids)} offres école et {len(non_alternance_ids)} offres non-alternance désactivées."
+    }

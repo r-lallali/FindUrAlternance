@@ -1295,11 +1295,63 @@ async def fix_missing_urls(db: Session = Depends(get_db), _: None = Depends(veri
 
 
 @router.post("/admin/fix-descriptions")
-async def fix_placeholder_descriptions(db: Session = Depends(get_db), _: None = Depends(verify_admin_key)):
-    """Clear placeholder descriptions left by failed HelloWork description fetches."""
+async def fix_placeholder_descriptions(background_tasks: BackgroundTasks, db: Session = Depends(get_db), _: None = Depends(verify_admin_key)):
+    """Refetch real descriptions for HelloWork offers that have placeholder text or NULL description."""
+    import httpx
+    from bs4 import BeautifulSoup
+
     PLACEHOLDER = "Voir l'offre pour la description complète"
-    updated = db.query(Offer).filter(Offer.description == PLACEHOLDER).update(
+
+    # First clear placeholders
+    db.query(Offer).filter(Offer.description == PLACEHOLDER).update(
         {"description": None}, synchronize_session=False
     )
     db.commit()
-    return {"updated": updated, "message": f"{updated} descriptions placeholder effacées."}
+
+    # Find all HelloWork offers with missing description
+    offers_to_fix = (
+        db.query(Offer)
+        .filter(Offer.source == "hellowork", Offer.description.is_(None), Offer.url.isnot(None))
+        .all()
+    )
+    offer_data = [(o.id, o.url) for o in offers_to_fix]
+
+    async def refetch_descriptions():
+        from database import SessionLocal
+        semaphore = asyncio.Semaphore(5)
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36",
+            "Accept-Language": "fr-FR,fr;q=0.9",
+        }
+        updated = 0
+
+        async def fetch_one(offer_id: str, url: str):
+            nonlocal updated
+            async with semaphore:
+                for attempt in range(2):
+                    try:
+                        async with httpx.AsyncClient(timeout=20.0, headers=headers, follow_redirects=True) as client:
+                            res = await client.get(url)
+                        if res.status_code == 200:
+                            soup = BeautifulSoup(res.text, "html.parser")
+                            desc_el = soup.select_one("#offer-panel") or soup.select_one("section.tw-peer")
+                            if desc_el:
+                                desc = desc_el.get_text(separator="\n", strip=True)
+                                fix_db = SessionLocal()
+                                try:
+                                    fix_db.query(Offer).filter(Offer.id == offer_id).update({"description": desc})
+                                    fix_db.commit()
+                                    updated += 1
+                                finally:
+                                    fix_db.close()
+                            return
+                        elif res.status_code == 429 and attempt == 0:
+                            await asyncio.sleep(3)
+                    except Exception:
+                        if attempt == 0:
+                            await asyncio.sleep(1)
+
+        await asyncio.gather(*[fetch_one(oid, url) for oid, url in offer_data])
+
+    background_tasks.add_task(refetch_descriptions)
+    return {"queued": len(offer_data), "message": f"{len(offer_data)} offres HelloWork sans description mises en file de refetch."}

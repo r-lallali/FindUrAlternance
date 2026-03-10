@@ -209,6 +209,49 @@ def normalize_company(name: Optional[str]) -> str:
     text = re.sub(r"\s+", " ", text).strip()
     return text
 
+# Canonical company name aliases: any key (case-insensitive exact match) → canonical value
+COMPANY_ALIASES: dict = {
+    "tf1": "Groupe TF1",
+    "tf1 group": "Groupe TF1",
+    "tf1 sa": "Groupe TF1",
+    "credit agricole": "Groupe Crédit Agricole",
+    "ca": "Groupe Crédit Agricole",
+    "bnp": "BNP Paribas",
+    "bnp paribas sa": "BNP Paribas",
+    "société générale": "Société Générale",
+    "societe generale": "Société Générale",
+    "sg": "Société Générale",
+    "la poste": "La Poste - Branche Services-Courrier-Colis",
+    "orange sa": "Orange",
+    "france telecom": "Orange",
+    "edf sa": "EDF",
+    "electricite de france": "EDF",
+    "total": "TotalEnergies",
+    "total se": "TotalEnergies",
+    "totalenergies se": "TotalEnergies",
+    "l'oreal": "L'Oréal",
+    "loreal": "L'Oréal",
+    "l oreal": "L'Oréal",
+    "axa sa": "AXA",
+    "axa group": "AXA",
+    "sncf reseau": "SNCF",
+    "sncf voyageurs": "SNCF",
+    "lvmh moet hennessy": "LVMH",
+    "lvmh group": "LVMH",
+}
+
+
+def canonicalize_company(name: Optional[str]) -> Optional[str]:
+    """
+    Return the canonical company name if a known alias is found, otherwise return the original.
+    Matching is case-insensitive and strips surrounding whitespace.
+    """
+    if not name:
+        return name
+    key = name.strip().lower()
+    return COMPANY_ALIASES.get(key, name)
+
+
 def clean_text(text: Optional[str], preserve_newlines: bool = False) -> Optional[str]:
     """Clean and normalize text content."""
     if not text:

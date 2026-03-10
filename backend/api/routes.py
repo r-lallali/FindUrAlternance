@@ -21,6 +21,7 @@ from schemas import (
     FavoriteCreate, FavoriteUpdate, FavoriteResponse,
 )
 from auth import hash_password, verify_password, create_token, get_current_user, get_optional_user
+from scrapers.utils import canonicalize_company, COMPANY_ALIASES
 
 router = APIRouter(prefix="/api", tags=["offers"])
 
@@ -885,6 +886,10 @@ async def run_global_scrape():
                     if offer_data.get("is_school") or offer_data.get("is_alternance") is False:
                         continue
 
+                    # Normalize company name to canonical form (e.g. "TF1" → "Groupe TF1")
+                    if offer_data.get("company"):
+                        offer_data["company"] = canonicalize_company(offer_data["company"])
+
                     existing = None
                     if offer_data.get("source_id"):
                         existing = bg_db.query(Offer).filter(
@@ -1067,13 +1072,18 @@ async def trigger_scrape(source: str, background_tasks: BackgroundTasks, db: Ses
                 # Do not save blocked offers into the database
                 if offer_data.get("is_school") or offer_data.get("is_alternance") is False:
                     continue
-                    
+
+                # Normalize company name to canonical form (e.g. "TF1" → "Groupe TF1")
+                if offer_data.get("company"):
+                    offer_data["company"] = canonicalize_company(offer_data["company"])
+
                 existing = None
                 if offer_data.get("source_id"):
                     existing = bg_db.query(Offer).filter(
                         Offer.source_id == offer_data["source_id"]
                     ).first()
-                
+
+
                 if not existing:
                     # Content-based duplicate: exact title + company + dept
                     existing = bg_db.query(Offer).filter(
@@ -1487,3 +1497,17 @@ async def cleanup_school_offers(db: Session = Depends(get_db), _: None = Depends
         "total_deactivated": len(school_ids) + len(non_alternance_ids),
         "message": f"{len(school_ids)} offres école et {len(non_alternance_ids)} offres non-alternance désactivées."
     }
+
+@router.post("/admin/fix-company-aliases")
+async def fix_company_aliases(db: Session = Depends(get_db), _: None = Depends(verify_admin_key)):
+    """Update existing offers to use canonical company names (e.g. 'TF1' → 'Groupe TF1')."""
+    updated = 0
+    for alias, canonical in COMPANY_ALIASES.items():
+        # Match case-insensitively via ilike
+        count = db.query(Offer).filter(
+            Offer.company.ilike(alias)
+        ).update({"company": canonical}, synchronize_session=False)
+        updated += count
+    db.commit()
+    global_stats_cache.clear()
+    return {"updated": updated, "message": f"{updated} offres mises à jour avec les noms canoniques."}

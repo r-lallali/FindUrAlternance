@@ -686,9 +686,18 @@ async def get_tech_stats(
     match_list = []
     it_offers_count = 0
 
+    # Map: normalized_company → canonical display name (first seen, i.e. most frequent)
+    norm_to_display: dict = {}
+
     for langs, fws, tools, certs, methods, company, title, desc_text, dept, cat in all_data:
-        # 1. Process Metadata
-        if company: company_field_counter.update([company.strip()])
+        # 1. Process Metadata — group company variants under the same normalized key
+        if company:
+            norm = normalize_company(company)
+            if norm:
+                # Keep whichever name was seen first as display name
+                if norm not in norm_to_display:
+                    norm_to_display[norm] = company.strip()
+                company_field_counter.update([norm])
         if dept: dept_counter.update([dept.strip()])
         if cat: cat_counter.update([cat.strip()])
         
@@ -713,21 +722,11 @@ async def get_tech_stats(
             "desc_normalized": desc_text.lower() if desc_text else ""
         })
 
-    # 4. Resolve accurate company counts (Top 15 names, but counts include mentions)
-    top15_names = [name for name, _ in company_field_counter.most_common(15)]
-    top_companies_resolved = []
-    
-    for name in top15_names:
-        lower_name = name.lower()
-        accurate_count = 0
-        for m in match_list:
-            if (lower_name in m["comp_normalized"] or 
-                lower_name in m["title_normalized"] or 
-                lower_name in m["desc_normalized"]):
-                accurate_count += 1
-        top_companies_resolved.append({"name": name, "count": accurate_count})
-    
-    top_companies_resolved.sort(key=lambda x: x["count"], reverse=True)
+    # 4. Build top companies using normalized counts → display names
+    top_companies_resolved = [
+        {"name": norm_to_display.get(norm, norm), "count": count}
+        for norm, count in company_field_counter.most_common(15)
+    ]
 
     def format_counter(counter, limit=15):
         return [{"name": name, "count": count} for name, count in counter.most_common(limit)]

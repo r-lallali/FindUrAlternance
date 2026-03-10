@@ -992,6 +992,9 @@ async def run_global_scrape():
         # Deactivate offers not seen in the last 36 hours — only for exhaustive scrapers
         EXHAUSTIVE_SOURCES = {"apec", "meteojob", "rhalternance"}
         stale_threshold = datetime.now(timezone.utc) - timedelta(hours=36)
+        # For non-exhaustive scrapers (keyword search), use a 14-day threshold
+        SEMI_EXHAUSTIVE_SOURCES = {"francetravail", "labonnealternance", "hellowork", "wttj", "linkedin"}
+        stale_threshold_long = datetime.now(timezone.utc) - timedelta(days=14)
         deactivate_db = SessionLocal()
         try:
             deactivated = deactivate_db.query(Offer).filter(
@@ -999,9 +1002,16 @@ async def run_global_scrape():
                 Offer.source.in_(EXHAUSTIVE_SOURCES),
                 Offer.last_seen_at < stale_threshold
             ).update({"is_active": False}, synchronize_session=False)
+            deactivated_semi = deactivate_db.query(Offer).filter(
+                Offer.is_active == True,  # noqa: E712
+                Offer.source.in_(SEMI_EXHAUSTIVE_SOURCES),
+                Offer.last_seen_at < stale_threshold_long
+            ).update({"is_active": False}, synchronize_session=False)
             deactivate_db.commit()
             if deactivated:
                 print(f"Deactivated {deactivated} stale offers (exhaustive sources) not seen in the last 36h.")
+            if deactivated_semi:
+                print(f"Deactivated {deactivated_semi} stale offers (semi-exhaustive sources) not seen in the last 14 days.")
         except Exception as e:
             deactivate_db.rollback()
             print(f"Error deactivating stale offers: {e}")
@@ -1351,6 +1361,87 @@ async def fix_missing_urls(db: Session = Depends(get_db), _: None = Depends(veri
                 
     db.commit()
     return {"updated": updated, "message": f"{updated} URLs corrigées ou retirées pour La Bonne Alternance."}
+
+
+@router.post("/admin/check-stale-offers")
+async def check_stale_offers(background_tasks: BackgroundTasks, db: Session = Depends(get_db), _: None = Depends(verify_admin_key)):
+    """
+    Validate URLs for FranceTravail and LaBonneAlternance offers.
+    Marks offers as inactive if their URL returns 404 or redirects away from the detail page.
+    Runs in background; returns immediately with the count of offers to check.
+    """
+    import httpx
+
+    offers_to_check = (
+        db.query(Offer)
+        .filter(
+            Offer.is_active == True,  # noqa: E712
+            Offer.source.in_(["francetravail", "labonnealternance"]),
+            Offer.url.isnot(None),
+            Offer.url != "",
+        )
+        .all()
+    )
+    offer_data = [(o.id, o.url, o.source) for o in offers_to_check]
+
+    async def validate_urls():
+        from database import SessionLocal
+        semaphore = asyncio.Semaphore(10)
+        deactivated = 0
+        checked = 0
+
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36",
+            "Accept-Language": "fr-FR,fr;q=0.9",
+        }
+
+        async def check_one(offer_id: int, url: str, source: str):
+            nonlocal deactivated, checked
+            async with semaphore:
+                try:
+                    async with httpx.AsyncClient(timeout=15.0, headers=headers, follow_redirects=True) as client:
+                        resp = await client.get(url)
+                        checked += 1
+                        is_stale = False
+
+                        if resp.status_code == 404:
+                            is_stale = True
+                        elif source == "francetravail":
+                            # FT redirects expired offers to the search listing page
+                            final_url = str(resp.url)
+                            if "/offres/recherche" in final_url and "/detail/" not in final_url:
+                                is_stale = True
+                            # Also check if page content indicates expiry
+                            elif "offre n'est plus disponible" in resp.text.lower() or "offre expirée" in resp.text.lower():
+                                is_stale = True
+                        elif source == "labonnealternance":
+                            final_url = str(resp.url)
+                            if resp.status_code >= 400 or "introuvable" in resp.text.lower():
+                                is_stale = True
+
+                        if is_stale:
+                            check_db = SessionLocal()
+                            try:
+                                check_db.query(Offer).filter(Offer.id == offer_id).update(
+                                    {"is_active": False}, synchronize_session=False
+                                )
+                                check_db.commit()
+                                deactivated += 1
+                            finally:
+                                check_db.close()
+
+                except Exception:
+                    checked += 1
+
+        tasks = [check_one(oid, url, src) for oid, url, src in offer_data]
+        await asyncio.gather(*tasks, return_exceptions=True)
+        print(f"check-stale-offers: checked={checked}, deactivated={deactivated}")
+
+    background_tasks.add_task(validate_urls)
+    return {
+        "message": f"Validation de {len(offer_data)} offres lancée en arrière-plan (FranceTravail + LaBonneAlternance).",
+        "offers_to_check": len(offer_data),
+    }
 
 
 @router.post("/admin/fix-descriptions")

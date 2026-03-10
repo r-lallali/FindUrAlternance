@@ -238,6 +238,14 @@ COMPANY_ALIASES: dict = {
     "sncf voyageurs": "SNCF",
     "lvmh moet hennessy": "LVMH",
     "lvmh group": "LVMH",
+    # Groupe BPCE (holding uniquement)
+    "bpce": "Groupe BPCE",
+    "bpce sa": "Groupe BPCE",
+    # Normalisation orthographique des réseaux indépendants
+    "caisse d'epargne": "Caisse d'Épargne",
+    "caisses d'epargne": "Caisse d'Épargne",
+    "caisses d'épargne": "Caisse d'Épargne",
+    "banques populaires": "Banque Populaire",
 }
 
 

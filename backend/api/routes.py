@@ -892,7 +892,7 @@ async def run_global_scrape():
                         ).first()
 
                     if not existing:
-                        # Content-based duplicate check (Title + Company + Dept)
+                        # Same-source duplicate: exact title + company + dept
                         existing = bg_db.query(Offer).filter(
                             Offer.title == offer_data.get("title"),
                             Offer.company == offer_data.get("company"),
@@ -900,10 +900,29 @@ async def run_global_scrape():
                         ).first()
 
                     if not existing and offer_data.get("description"):
-                        # Fallback check on exact description match
+                        # Exact description match across sources
                         existing = bg_db.query(Offer).filter(
                             Offer.description == offer_data["description"]
                         ).first()
+
+                    if not existing and offer_data.get("title") and offer_data.get("description"):
+                        # Cross-source fuzzy duplicate: same title + dept, similar description (>85%)
+                        from difflib import SequenceMatcher
+                        new_desc = offer_data["description"][:500]  # compare first 500 chars for speed
+                        candidates = bg_db.query(Offer).filter(
+                            Offer.title == offer_data.get("title"),
+                            Offer.department == offer_data.get("department"),
+                            Offer.description.isnot(None),
+                        ).all()
+                        for candidate in candidates:
+                            ratio = SequenceMatcher(
+                                None,
+                                new_desc,
+                                (candidate.description or "")[:500]
+                            ).ratio()
+                            if ratio >= 0.85:
+                                existing = candidate
+                                break
                     now = datetime.now(timezone.utc)
                     if not existing:
                         offer_data["last_seen_at"] = now
@@ -1057,18 +1076,37 @@ async def trigger_scrape(source: str, background_tasks: BackgroundTasks, db: Ses
                     ).first()
                 
                 if not existing:
-                    # Content-based duplicate check (Title + Company + Dept)
+                    # Same-source duplicate: exact title + company + dept
                     existing = bg_db.query(Offer).filter(
                         Offer.title == offer_data.get("title"),
                         Offer.company == offer_data.get("company"),
                         Offer.department == offer_data.get("department")
                     ).first()
-                
+
                 if not existing and offer_data.get("description"):
-                    # Fallback check on exact description match
+                    # Exact description match across sources
                     existing = bg_db.query(Offer).filter(
                         Offer.description == offer_data["description"]
                     ).first()
+
+                if not existing and offer_data.get("title") and offer_data.get("description"):
+                    # Cross-source fuzzy duplicate: same title + dept, similar description (>85%)
+                    from difflib import SequenceMatcher
+                    new_desc = offer_data["description"][:500]
+                    candidates = bg_db.query(Offer).filter(
+                        Offer.title == offer_data.get("title"),
+                        Offer.department == offer_data.get("department"),
+                        Offer.description.isnot(None),
+                    ).all()
+                    for candidate in candidates:
+                        ratio = SequenceMatcher(
+                            None,
+                            new_desc,
+                            (candidate.description or "")[:500]
+                        ).ratio()
+                        if ratio >= 0.85:
+                            existing = candidate
+                            break
                 now = datetime.now(timezone.utc)
                 if not existing:
                     offer_data["last_seen_at"] = now

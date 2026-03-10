@@ -158,6 +158,38 @@ def is_school_offer(company: str, description: Optional[str] = None, title: Opti
 
 
 import html
+import unicodedata
+
+# Prefixes/suffixes to strip when normalizing company names for duplicate detection
+_COMPANY_STRIP = re.compile(
+    r"^\s*(groupe|group|société|societe|association|fondation|cabinet|agence|the|les|la|le|l'|l')\s+",
+    re.IGNORECASE,
+)
+_COMPANY_LEGAL = re.compile(
+    r"\s+(sa|sas|sarl|sasu|snc|sci|scop|se|gie|eurl|spa|inc|ltd|llc|gmbh|nv|bv|plc|corp|co\.?)\s*$",
+    re.IGNORECASE,
+)
+
+
+def normalize_company(name: Optional[str]) -> str:
+    """
+    Return a normalized version of a company name for duplicate comparison.
+    Strips common prefixes (Groupe, Société…) and legal suffixes (SA, SAS…),
+    lowercases, removes accents and punctuation.
+    """
+    if not name:
+        return ""
+    text = name.strip()
+    # Remove legal suffix first, then prefix (order matters: "Groupe TF1 SA" → "TF1")
+    text = _COMPANY_LEGAL.sub("", text).strip()
+    text = _COMPANY_STRIP.sub("", text).strip()
+    # Lowercase + remove accents
+    text = unicodedata.normalize("NFD", text.lower())
+    text = "".join(c for c in text if unicodedata.category(c) != "Mn")
+    # Collapse spaces and remove punctuation except hyphens
+    text = re.sub(r"[^\w\s-]", "", text)
+    text = re.sub(r"\s+", " ", text).strip()
+    return text
 
 def clean_text(text: Optional[str], preserve_newlines: bool = False) -> Optional[str]:
     """Clean and normalize text content."""

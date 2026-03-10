@@ -21,6 +21,7 @@ from schemas import (
     FavoriteCreate, FavoriteUpdate, FavoriteResponse,
 )
 from auth import hash_password, verify_password, create_token, get_current_user, get_optional_user
+from scrapers.utils import normalize_company
 
 router = APIRouter(prefix="/api", tags=["offers"])
 
@@ -892,12 +893,16 @@ async def run_global_scrape():
                         ).first()
 
                     if not existing:
-                        # Same-source duplicate: exact title + company + dept
-                        existing = bg_db.query(Offer).filter(
+                        # Same title + dept: match if normalized company names are equal
+                        norm_new = normalize_company(offer_data.get("company"))
+                        candidates = bg_db.query(Offer).filter(
                             Offer.title == offer_data.get("title"),
-                            Offer.company == offer_data.get("company"),
-                            Offer.department == offer_data.get("department")
-                        ).first()
+                            Offer.department == offer_data.get("department"),
+                        ).all()
+                        for c in candidates:
+                            if normalize_company(c.company) == norm_new:
+                                existing = c
+                                break
 
                     if not existing and offer_data.get("description"):
                         # Exact description match across sources
@@ -908,7 +913,7 @@ async def run_global_scrape():
                     if not existing and offer_data.get("title") and offer_data.get("description"):
                         # Cross-source fuzzy duplicate: same title + dept, similar description (>85%)
                         from difflib import SequenceMatcher
-                        new_desc = offer_data["description"][:500]  # compare first 500 chars for speed
+                        new_desc = offer_data["description"][:500]
                         candidates = bg_db.query(Offer).filter(
                             Offer.title == offer_data.get("title"),
                             Offer.department == offer_data.get("department"),
@@ -916,9 +921,7 @@ async def run_global_scrape():
                         ).all()
                         for candidate in candidates:
                             ratio = SequenceMatcher(
-                                None,
-                                new_desc,
-                                (candidate.description or "")[:500]
+                                None, new_desc, (candidate.description or "")[:500]
                             ).ratio()
                             if ratio >= 0.85:
                                 existing = candidate
@@ -1076,12 +1079,16 @@ async def trigger_scrape(source: str, background_tasks: BackgroundTasks, db: Ses
                     ).first()
                 
                 if not existing:
-                    # Same-source duplicate: exact title + company + dept
-                    existing = bg_db.query(Offer).filter(
+                    # Same title + dept: match if normalized company names are equal
+                    norm_new = normalize_company(offer_data.get("company"))
+                    candidates = bg_db.query(Offer).filter(
                         Offer.title == offer_data.get("title"),
-                        Offer.company == offer_data.get("company"),
-                        Offer.department == offer_data.get("department")
-                    ).first()
+                        Offer.department == offer_data.get("department"),
+                    ).all()
+                    for c in candidates:
+                        if normalize_company(c.company) == norm_new:
+                            existing = c
+                            break
 
                 if not existing and offer_data.get("description"):
                     # Exact description match across sources
@@ -1100,9 +1107,7 @@ async def trigger_scrape(source: str, background_tasks: BackgroundTasks, db: Ses
                     ).all()
                     for candidate in candidates:
                         ratio = SequenceMatcher(
-                            None,
-                            new_desc,
-                            (candidate.description or "")[:500]
+                            None, new_desc, (candidate.description or "")[:500]
                         ).ratio()
                         if ratio >= 0.85:
                             existing = candidate

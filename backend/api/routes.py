@@ -1,5 +1,6 @@
 """API routes for the alternance dashboard."""
 
+import asyncio
 import json
 import os
 import time

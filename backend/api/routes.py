@@ -1412,3 +1412,46 @@ async def fix_placeholder_descriptions(background_tasks: BackgroundTasks, db: Se
 
     background_tasks.add_task(refetch_descriptions)
     return {"queued": len(offer_data), "message": f"{len(offer_data)} offres HelloWork sans description mises en file de refetch."}
+
+@router.post("/admin/fix-company-duplicates")
+async def fix_company_duplicates(db: Session = Depends(get_db), _: None = Depends(verify_admin_key)):
+    """
+    Merge offers that are duplicates across sources but have slightly different company names
+    (e.g. 'TF1' vs 'Groupe TF1'). Keeps the oldest offer, soft-deletes the newer ones.
+    """
+    from difflib import SequenceMatcher
+
+    # Load all active offers with title, company, department, description
+    offers = db.query(Offer).filter(Offer.is_active == True).order_by(Offer.scraped_at.asc()).all()  # noqa: E712
+
+    # Group by (normalized_title, normalized_company, department)
+    # Key: (title, norm_company, dept) → first offer seen (oldest = kept)
+    groups: dict = {}
+    to_deactivate = []
+
+    for offer in offers:
+        norm_co = normalize_company(offer.company)
+        key = (offer.title or "", norm_co, offer.department or "")
+        if key not in groups:
+            groups[key] = offer
+        else:
+            keeper = groups[key]
+            # Only merge if descriptions are similar enough (or one is missing)
+            desc_a = (keeper.description or "")[:500]
+            desc_b = (offer.description or "")[:500]
+            if not desc_a or not desc_b or SequenceMatcher(None, desc_a, desc_b).ratio() >= 0.75:
+                # Keep better description on the keeper
+                if offer.description and (not keeper.description or len(offer.description) > len(keeper.description)):
+                    keeper.description = offer.description
+                to_deactivate.append(offer.id)
+
+    if to_deactivate:
+        db.query(Offer).filter(Offer.id.in_(to_deactivate)).update(
+            {"is_active": False}, synchronize_session=False
+        )
+        db.commit()
+
+    return {
+        "merged": len(to_deactivate),
+        "message": f"{len(to_deactivate)} doublons inter-sources désactivés (noms d'entreprise normalisés)."
+    }

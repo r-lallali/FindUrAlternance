@@ -859,142 +859,138 @@ async def run_global_scrape():
     global global_scraping_status
     if global_scraping_status["is_running"]:
         return
-    
+
     global_scraping_status["is_running"] = True
     global_scraping_status["progress"] = 5
     global_scraping_status["message"] = "Lancement en parallèle..."
     global_scraping_status["details"] = "Démarrage des scrapers simultanés"
-    
-    total = len(scrapers_list)
-    completed = 0
-    
-    async def scrape_and_save(source_name, scraper_class):
-        nonlocal completed
-        bg_db = SessionLocal()
-        start_time = datetime.now(timezone.utc)
-        try:
-            # Total offers before this source's scrape
-            total_before = bg_db.query(Offer).count()
-            
-            scraper = scraper_class()
-            offers = await scraper.run()
-            
-            new_count = 0
-            for offer_data in offers:
-                # Do not save blocked offers into the database
-                if offer_data.get("is_school") or offer_data.get("is_alternance") is False:
-                    continue
-                    
-                existing = None
-                if offer_data.get("source_id"):
-                    existing = bg_db.query(Offer).filter(
-                        Offer.source_id == offer_data["source_id"]
-                    ).first()
-                
-                if not existing:
-                    # Content-based duplicate check (Title + Company + Dept)
-                    # Use exact matches for indexed fields to keep it fast
-                    existing = bg_db.query(Offer).filter(
-                        Offer.title == offer_data.get("title"),
-                        Offer.company == offer_data.get("company"),
-                        Offer.department == offer_data.get("department")
-                    ).first()
-                
-                if not existing and offer_data.get("description"):
-                    # Fallback check on exact description match
-                    existing = bg_db.query(Offer).filter(
-                        Offer.description == offer_data["description"]
-                    ).first()
-                now = datetime.now(timezone.utc)
-                if not existing:
-                    offer_data["last_seen_at"] = now
-                    offer = Offer(**offer_data)
-                    bg_db.add(offer)
-                    new_count += 1
-                else:
-                    existing.last_seen_at = now
-                    existing.is_active = True
-                    if offer_data.get("description"):
-                        if not existing.description or len(offer_data["description"]) > len(existing.description):
-                            existing.description = offer_data["description"]
-                    if offer_data.get("publication_date"):
-                        existing.publication_date = offer_data["publication_date"]
-                    # Update company name if old one was generic
-                    if offer_data.get("company") and "confidentielle" in (existing.company or "").lower():
-                        if "confidentielle" not in offer_data["company"].lower():
-                            existing.company = offer_data["company"]
-                bg_db.commit()
+    try:
+        total = len(scrapers_list)
+        completed = 0
 
-            # Total offers after this source's scrape
-            total_after = bg_db.query(Offer).count()
-            
-            # Record log
-            log = ScrapingLog(
-                source=source_name,
-                timestamp=start_time,
-                offers_found=len(offers),
-                offers_new=new_count,
-                total_before=total_before,
-                total_after=total_after,
-                status="success"
-            )
-            bg_db.add(log)
-            bg_db.commit()
-            
-            print(f"Scraping completed for {source_name}. {new_count} new offers added.")
-        except Exception as e:
-            bg_db.rollback()
-            # Record error log
+        async def scrape_and_save(source_name, scraper_class):
+            nonlocal completed
+            bg_db = SessionLocal()
+            start_time = datetime.now(timezone.utc)
             try:
-                error_log = ScrapingLog(
+                # Total offers before this source's scrape
+                total_before = bg_db.query(Offer).count()
+
+                scraper = scraper_class()
+                offers = await scraper.run()
+
+                new_count = 0
+                for offer_data in offers:
+                    # Do not save blocked offers into the database
+                    if offer_data.get("is_school") or offer_data.get("is_alternance") is False:
+                        continue
+
+                    existing = None
+                    if offer_data.get("source_id"):
+                        existing = bg_db.query(Offer).filter(
+                            Offer.source_id == offer_data["source_id"]
+                        ).first()
+
+                    if not existing:
+                        # Content-based duplicate check (Title + Company + Dept)
+                        existing = bg_db.query(Offer).filter(
+                            Offer.title == offer_data.get("title"),
+                            Offer.company == offer_data.get("company"),
+                            Offer.department == offer_data.get("department")
+                        ).first()
+
+                    if not existing and offer_data.get("description"):
+                        # Fallback check on exact description match
+                        existing = bg_db.query(Offer).filter(
+                            Offer.description == offer_data["description"]
+                        ).first()
+                    now = datetime.now(timezone.utc)
+                    if not existing:
+                        offer_data["last_seen_at"] = now
+                        offer = Offer(**offer_data)
+                        bg_db.add(offer)
+                        new_count += 1
+                    else:
+                        existing.last_seen_at = now
+                        existing.is_active = True
+                        if offer_data.get("description"):
+                            if not existing.description or len(offer_data["description"]) > len(existing.description):
+                                existing.description = offer_data["description"]
+                        if offer_data.get("publication_date"):
+                            existing.publication_date = offer_data["publication_date"]
+                        # Update company name if old one was generic
+                        if offer_data.get("company") and "confidentielle" in (existing.company or "").lower():
+                            if "confidentielle" not in offer_data["company"].lower():
+                                existing.company = offer_data["company"]
+                    bg_db.commit()
+
+                # Total offers after this source's scrape
+                total_after = bg_db.query(Offer).count()
+
+                # Record log
+                log = ScrapingLog(
                     source=source_name,
                     timestamp=start_time,
-                    status="error",
-                    message=str(e)
+                    offers_found=len(offers),
+                    offers_new=new_count,
+                    total_before=total_before,
+                    total_after=total_after,
+                    status="success"
                 )
-                bg_db.add(error_log)
+                bg_db.add(log)
                 bg_db.commit()
-            except:
-                pass
-            print(f"Scraping error for {source_name}: {e}")
+
+                print(f"Scraping completed for {source_name}. {new_count} new offers added.")
+            except Exception as e:
+                bg_db.rollback()
+                try:
+                    error_log = ScrapingLog(
+                        source=source_name,
+                        timestamp=start_time,
+                        status="error",
+                        message=str(e)
+                    )
+                    bg_db.add(error_log)
+                    bg_db.commit()
+                except:
+                    pass
+                print(f"Scraping error for {source_name}: {e}")
+            finally:
+                bg_db.close()
+                completed += 1
+                prog = int((completed / total) * 95) + 5
+                global_scraping_status["progress"] = prog
+                global_scraping_status["message"] = f"Analyse en cours ({completed}/{total})"
+                global_scraping_status["details"] = f"{source_name} terminé"
+
+        tasks = [scrape_and_save(name, cls) for name, cls in scrapers_list]
+        await asyncio.gather(*tasks, return_exceptions=True)
+
+        # Deactivate offers not seen in the last 36 hours — only for exhaustive scrapers
+        EXHAUSTIVE_SOURCES = {"apec", "meteojob", "rhalternance"}
+        stale_threshold = datetime.now(timezone.utc) - timedelta(hours=36)
+        deactivate_db = SessionLocal()
+        try:
+            deactivated = deactivate_db.query(Offer).filter(
+                Offer.is_active == True,  # noqa: E712
+                Offer.source.in_(EXHAUSTIVE_SOURCES),
+                Offer.last_seen_at < stale_threshold
+            ).update({"is_active": False}, synchronize_session=False)
+            deactivate_db.commit()
+            if deactivated:
+                print(f"Deactivated {deactivated} stale offers (exhaustive sources) not seen in the last 36h.")
+        except Exception as e:
+            deactivate_db.rollback()
+            print(f"Error deactivating stale offers: {e}")
         finally:
-            bg_db.close()
-            completed += 1
-            prog = int((completed / total) * 95) + 5
-            global_scraping_status["progress"] = prog
-            global_scraping_status["message"] = f"Analyse en cours ({completed}/{total})"
-            global_scraping_status["details"] = f"{source_name} terminé"
+            deactivate_db.close()
 
-    tasks = [scrape_and_save(name, cls) for name, cls in scrapers_list]
-    await asyncio.gather(*tasks, return_exceptions=True)
-
-    # Deactivate offers not seen in the last 36 hours — only for exhaustive scrapers
-    # (scrapers that fetch ALL offers, not just the first N pages).
-    # Non-exhaustive scrapers (linkedin, wttj, hellowork, francetravail, labonnealternance)
-    # rely on the existing 90-day publication_date expiry to avoid false deactivations.
-    EXHAUSTIVE_SOURCES = {"apec", "meteojob", "rhalternance"}
-    stale_threshold = datetime.now(timezone.utc) - timedelta(hours=36)
-    deactivate_db = SessionLocal()
-    try:
-        deactivated = deactivate_db.query(Offer).filter(
-            Offer.is_active == True,  # noqa: E712
-            Offer.source.in_(EXHAUSTIVE_SOURCES),
-            Offer.last_seen_at < stale_threshold
-        ).update({"is_active": False}, synchronize_session=False)
-        deactivate_db.commit()
-        if deactivated:
-            print(f"Deactivated {deactivated} stale offers (exhaustive sources) not seen in the last 36h.")
-    except Exception as e:
-        deactivate_db.rollback()
-        print(f"Error deactivating stale offers: {e}")
+        global_stats_cache.clear()
+        global_scraping_status["progress"] = 100
+        global_scraping_status["message"] = "Terminé"
+        global_scraping_status["details"] = "Tous les sites ont été analysés."
     finally:
-        deactivate_db.close()
-
-    global_stats_cache.clear()
-    global_scraping_status["progress"] = 100
-    global_scraping_status["message"] = "Terminé"
-    global_scraping_status["details"] = "Tous les sites ont été analysés."
-    global_scraping_status["is_running"] = False
+        global_scraping_status["is_running"] = False
 
 
 @router.post("/scrape/{source}", response_model=ScrapingStatus)

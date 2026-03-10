@@ -1293,3 +1293,13 @@ async def fix_missing_urls(db: Session = Depends(get_db), _: None = Depends(veri
     db.commit()
     return {"updated": updated, "message": f"{updated} URLs corrigées ou retirées pour La Bonne Alternance."}
 
+
+@router.post("/admin/fix-descriptions")
+async def fix_placeholder_descriptions(db: Session = Depends(get_db), _: None = Depends(verify_admin_key)):
+    """Clear placeholder descriptions left by failed HelloWork description fetches."""
+    PLACEHOLDER = "Voir l'offre pour la description complète"
+    updated = db.query(Offer).filter(Offer.description == PLACEHOLDER).update(
+        {"description": None}, synchronize_session=False
+    )
+    db.commit()
+    return {"updated": updated, "message": f"{updated} descriptions placeholder effacées."}

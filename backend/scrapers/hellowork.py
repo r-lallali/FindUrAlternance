@@ -90,21 +90,22 @@ class HelloWorkScraper(BaseScraper):
 
     async def _fetch_description(self, client: httpx.AsyncClient, url: str) -> Optional[str]:
         """Fetch the full job description from the detail page."""
-        try:
-            res = await client.get(url)
-            if res.status_code == 200:
-                soup = BeautifulSoup(res.text, "html.parser")
-                # Look for description panels
-                desc_el = (
-                    soup.select_one("#offer-panel")
-                    or soup.select_one("section.tw-peer")
-                    or soup.select_one("[data-cy='descriptionJob']")
-                    or soup.select_one(".description")
-                )
-                if desc_el:
-                    return desc_el.get_text(separator="\n", strip=True)
-        except Exception as e:
-            self.logger.debug(f"Error fetching HelloWork description from {url}: {e}")
+        for attempt in range(2):
+            try:
+                res = await client.get(url, timeout=20.0)
+                if res.status_code == 200:
+                    soup = BeautifulSoup(res.text, "html.parser")
+                    desc_el = soup.select_one("#offer-panel") or soup.select_one("section.tw-peer")
+                    if desc_el:
+                        return desc_el.get_text(separator="\n", strip=True)
+                    return None
+                elif res.status_code == 429 and attempt == 0:
+                    await asyncio.sleep(2)
+                    continue
+            except Exception as e:
+                self.logger.debug(f"Error fetching HelloWork description from {url}: {e}")
+                if attempt == 0:
+                    await asyncio.sleep(1)
         return None
 
     async def _scrape_page(
@@ -204,7 +205,7 @@ class HelloWorkScraper(BaseScraper):
                             "company": company,
                             "location": location,
                             "contract": contract,
-                            "description": "Voir l'offre pour la description complète",
+                            "description": None,
                             "salary_text": salary_text,
                             "_id": offer_id,
                             "date_text": card.find(attrs={"data-cy": "publishDateCard"}).get_text(strip=True) if card.find(attrs={"data-cy": "publishDateCard"}) else "",

@@ -71,6 +71,15 @@ class LinkedInScraper(BaseScraper):
 
         all_offers = []
         seen_ids = set()
+        # Global semaphore shared across all pages/geos to avoid 429s
+        desc_semaphore = asyncio.Semaphore(3)
+
+        async def enrich_desc(client, off):
+            j_id = off.get("_id")
+            if j_id:
+                async with desc_semaphore:
+                    off["description"] = await self._fetch_description(client, j_id)
+            return off
 
         async with httpx.AsyncClient(
             timeout=30.0,
@@ -84,17 +93,7 @@ class LinkedInScraper(BaseScraper):
                             start = page * 25  # LinkedIn uses 25 per page
                             offers = await self._search_page(client, term, geo_id, start)
 
-                            # Fetch descriptions with concurrency limit to avoid 429
-                            semaphore = asyncio.Semaphore(5)
-
-                            async def enrich_desc(off):
-                                j_id = off.get("_id")
-                                if j_id:
-                                    async with semaphore:
-                                        off["description"] = await self._fetch_description(client, j_id)
-                                return off
-
-                            tasks = [enrich_desc(o) for o in offers]
+                            tasks = [enrich_desc(client, o) for o in offers]
                             enriched_offers = await asyncio.gather(*tasks)
 
                             for offer in enriched_offers:
@@ -103,7 +102,6 @@ class LinkedInScraper(BaseScraper):
                                     seen_ids.add(oid)
                                     all_offers.append(offer)
 
-                            # Rate limiting (increased to be more respectfull/stealthy)
                             await asyncio.sleep(5.0)
                         except Exception as e:
                             self.logger.warning(f"Error on LinkedIn page {page} for '{term}' geo={geo_id}: {e}")
@@ -174,20 +172,29 @@ class LinkedInScraper(BaseScraper):
 
     async def _fetch_description(self, client: httpx.AsyncClient, job_id: str) -> Optional[str]:
         """Fetch the job description from its LinkedIn public page."""
-        try:
-            url = f"https://www.linkedin.com/jobs/view/{job_id}/"
-            response = await client.get(url)
-            if response.status_code == 200:
-                soup = BeautifulSoup(response.text, "html.parser")
-                desc_el = (
-                    soup.select_one("div.description__text")
-                    or soup.select_one(".show-more-less-html__markup")
-                    or soup.select_one(".description__text")
-                )
-                if desc_el:
-                    return desc_el.get_text(separator="\n", strip=True)
-        except Exception as e:
-            self.logger.debug(f"Error fetching description for {job_id}: {e}")
+        url = f"https://www.linkedin.com/jobs/view/{job_id}/"
+        for attempt in range(3):
+            try:
+                response = await client.get(url, timeout=20.0)
+                if response.status_code == 200:
+                    soup = BeautifulSoup(response.text, "html.parser")
+                    desc_el = (
+                        soup.select_one("div.description__text")
+                        or soup.select_one(".show-more-less-html__markup")
+                    )
+                    if desc_el:
+                        return desc_el.get_text(separator="\n", strip=True)
+                    return None
+                elif response.status_code == 429:
+                    wait = 30 * (attempt + 1)
+                    self.logger.warning(f"LinkedIn 429 on description {job_id}, waiting {wait}s")
+                    await asyncio.sleep(wait)
+                    continue
+                return None
+            except Exception as e:
+                self.logger.debug(f"Error fetching description for {job_id}: {e}")
+                if attempt < 2:
+                    await asyncio.sleep(5)
         return None
 
     def _parse_search_page(self, html: str) -> List[Dict[str, Any]]:

@@ -1,11 +1,13 @@
 """API routes for the alternance dashboard."""
 
 import json
+import os
 import time
 from collections import Counter
 from datetime import datetime, timedelta, timezone
 from typing import Optional, Any
 from fastapi import APIRouter, Depends, Query, HTTPException, status, BackgroundTasks
+from fastapi.security import APIKeyHeader
 from sqlalchemy.orm import Session
 from sqlalchemy import func, or_, desc, cast
 from sqlalchemy.dialects.postgresql import JSONB
@@ -20,6 +22,14 @@ from schemas import (
 from auth import hash_password, verify_password, create_token, get_current_user, get_optional_user
 
 router = APIRouter(prefix="/api", tags=["offers"])
+
+# ─── ADMIN API KEY AUTH ───
+_api_key_header = APIKeyHeader(name="X-Admin-API-Key", auto_error=False)
+
+async def verify_admin_key(key: str = Depends(_api_key_header)):
+    expected = os.environ.get("ADMIN_API_KEY", "fua-admin-secret-key-change-in-production")
+    if key != expected:
+        raise HTTPException(status_code=401, detail="Unauthorized")
 
 # ─── IN-MEMORY CACHE FOR STATS ───
 class StatsCache:
@@ -796,8 +806,14 @@ global_scraping_status = {
     "details": "",
 }
 
+@router.get("/health")
+async def health():
+    """Public healthcheck endpoint."""
+    return {"status": "ok"}
+
+
 @router.get("/scrape/status")
-async def get_scrape_status():
+async def get_scrape_status(_: None = Depends(verify_admin_key)):
     """Get the current background scraping status."""
     return global_scraping_status
 
@@ -964,7 +980,7 @@ async def run_global_scrape():
 
 
 @router.post("/scrape/{source}", response_model=ScrapingStatus)
-async def trigger_scrape(source: str, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+async def trigger_scrape(source: str, background_tasks: BackgroundTasks, db: Session = Depends(get_db), _: None = Depends(verify_admin_key)):
     """Manually trigger scraping for a specific source."""
     from scrapers import (
         LaBonneAlternanceScraper, FranceTravailScraper,
@@ -1112,7 +1128,7 @@ async def trigger_scrape(source: str, background_tasks: BackgroundTasks, db: Ses
 
 
 @router.post("/scrape", response_model=list[ScrapingStatus])
-async def trigger_scrape_all(background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+async def trigger_scrape_all(background_tasks: BackgroundTasks, db: Session = Depends(get_db), _: None = Depends(verify_admin_key)):
     """Trigger scraping for all sources."""
     background_tasks.add_task(run_global_scrape)
 
@@ -1138,7 +1154,7 @@ async def trigger_scrape_all(background_tasks: BackgroundTasks, db: Session = De
 
 
 @router.post("/admin/fix-dates")
-async def fix_missing_dates(db: Session = Depends(get_db)):
+async def fix_missing_dates(db: Session = Depends(get_db), _: None = Depends(verify_admin_key)):
     """Backfill publication_date with scraped_at for offers that have no date."""
     updated = (
         db.query(Offer)
@@ -1150,7 +1166,7 @@ async def fix_missing_dates(db: Session = Depends(get_db)):
 
 
 @router.post("/admin/fix-schools")
-async def fix_school_flags(db: Session = Depends(get_db)):
+async def fix_school_flags(db: Session = Depends(get_db), _: None = Depends(verify_admin_key)):
     """Re-scan all offers and flag school offers that slipped through."""
     from scrapers.utils import is_school_offer
 
@@ -1178,7 +1194,7 @@ async def fix_school_flags(db: Session = Depends(get_db)):
 
 
 @router.post("/admin/fix-alternance")
-async def fix_alternance_flags(db: Session = Depends(get_db)):
+async def fix_alternance_flags(db: Session = Depends(get_db), _: None = Depends(verify_admin_key)):
     """Re-scan all offers and flag non-alternance offers (CDIs) that slipped through."""
     from scrapers.skills_extractor import is_alternance_offer
 
@@ -1203,7 +1219,7 @@ async def fix_alternance_flags(db: Session = Depends(get_db)):
 
 
 @router.post("/admin/cleanup-duplicates")
-async def cleanup_duplicates(db: Session = Depends(get_db)):
+async def cleanup_duplicates(db: Session = Depends(get_db), _: None = Depends(verify_admin_key)):
     """Remove existing duplicate offers based on title, description, location, and department."""
     # This identifies duplicates and keeps the one with the most recent publication or scrap date.
     all_offers = db.query(Offer).order_by(desc(Offer.scraped_at)).all()
@@ -1240,7 +1256,7 @@ async def cleanup_duplicates(db: Session = Depends(get_db)):
 
 
 @router.post("/admin/fix-urls")
-async def fix_missing_urls(db: Session = Depends(get_db)):
+async def fix_missing_urls(db: Session = Depends(get_db), _: None = Depends(verify_admin_key)):
     """Rebuild missing URLs for La Bonne Alternance offers using their source_id."""
     # 1. Update standard matcha/peJob that are completely missing URLs
     offers = db.query(Offer).filter(

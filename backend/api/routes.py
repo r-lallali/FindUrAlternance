@@ -22,6 +22,7 @@ from schemas import (
 )
 from auth import hash_password, verify_password, create_token, get_current_user, get_optional_user
 from scrapers.utils import canonicalize_company, COMPANY_ALIASES
+from utils.company_extractor import extract_company_from_description
 
 router = APIRouter(prefix="/api", tags=["offers"])
 
@@ -890,6 +891,17 @@ async def run_global_scrape():
                     if offer_data.get("company"):
                         offer_data["company"] = canonicalize_company(offer_data["company"])
 
+                    # NLP: try to extract real employer name from description when company is generic
+                    _GENERIC_NAMES = {"confidentielle", "engagement jeunes", "talents handicap",
+                                      "groupe talents handicap", "anonyme", "non renseigné"}
+                    if offer_data.get("company") and offer_data.get("description"):
+                        if any(g in offer_data["company"].lower() for g in _GENERIC_NAMES):
+                            extracted = extract_company_from_description(
+                                offer_data["description"], offer_data["company"]
+                            )
+                            if extracted:
+                                offer_data["company"] = extracted
+
                     existing = None
                     if offer_data.get("source_id"):
                         existing = bg_db.query(Offer).filter(
@@ -1441,6 +1453,57 @@ async def check_stale_offers(background_tasks: BackgroundTasks, db: Session = De
     return {
         "message": f"Validation de {len(offer_data)} offres lancée en arrière-plan (FranceTravail + LaBonneAlternance).",
         "offers_to_check": len(offer_data),
+    }
+
+
+@router.post("/admin/fix-confidential-companies")
+async def fix_confidential_companies(background_tasks: BackgroundTasks, db: Session = Depends(get_db), _: None = Depends(verify_admin_key)):
+    """
+    Run NLP extraction on all active offers with a generic company name
+    ('Entreprise confidentielle', etc.) that have a description.
+    Updates the company field if a real employer name is found.
+    Runs in background.
+    """
+    _GENERIC_NAMES = {"confidentielle", "engagement jeunes", "talents handicap",
+                      "groupe talents handicap", "anonyme", "non renseigné"}
+
+    offers_to_fix = (
+        db.query(Offer)
+        .filter(
+            Offer.is_active == True,  # noqa: E712
+            Offer.description.isnot(None),
+            Offer.description != "",
+        )
+        .all()
+    )
+    # Keep only those with a generic company name
+    targets = [
+        (o.id, o.description, o.company)
+        for o in offers_to_fix
+        if o.company and any(g in o.company.lower() for g in _GENERIC_NAMES)
+    ]
+
+    async def run_nlp():
+        from database import SessionLocal
+        updated = 0
+        for offer_id, description, company in targets:
+            extracted = extract_company_from_description(description, company or "")
+            if extracted:
+                fix_db = SessionLocal()
+                try:
+                    fix_db.query(Offer).filter(Offer.id == offer_id).update(
+                        {"company": extracted}, synchronize_session=False
+                    )
+                    fix_db.commit()
+                    updated += 1
+                finally:
+                    fix_db.close()
+        print(f"fix-confidential-companies: {updated}/{len(targets)} offres mises à jour.")
+
+    background_tasks.add_task(run_nlp)
+    return {
+        "message": f"Extraction NLP lancée en arrière-plan sur {len(targets)} offres.",
+        "offers_targeted": len(targets),
     }
 
 

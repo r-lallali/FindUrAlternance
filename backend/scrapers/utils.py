@@ -116,6 +116,24 @@ SCHOOL_DESCRIPTION_KEYWORDS = [
     "nous vous proposons une formation",
     "entreprises partenaires",
     "école partenaire", "ecole partenaire",
+    # School posting for a client company (e.g. "Auguste Académie recherche pour l'un de ses clients")
+    "pour l'un de ses clients",
+    "pour un de ses clients",
+    "recherche pour l'un de ses",
+    "recherche pour un de ses",
+    "recrute pour l'un de ses",
+    "recrute pour un de ses",
+    # Invitation to join the school
+    "rejoignez notre académie", "rejoignez notre academie",
+    "rejoignez notre école", "rejoignez notre ecole",
+    "rejoignez notre centre de formation",
+    "rejoignez notre cfa",
+    "construisons ensemble votre avenir",
+    # Eligibility framing typical of school offers
+    "éligible à un contrat d'apprentissage",
+    "eligible a un contrat d'apprentissage",
+    "éligible au contrat d'apprentissage",
+    "eligible au contrat d'apprentissage",
 ]
 
 

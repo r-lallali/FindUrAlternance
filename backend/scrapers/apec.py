@@ -1,11 +1,9 @@
 import asyncio
-import json
-import logging
 from typing import List, Dict, Any, Optional
 from datetime import datetime
 from curl_cffi.requests import AsyncSession
 from scrapers.base_scraper import BaseScraper
-from scrapers.utils import is_school_offer, clean_text, enrich_location, normalize_salary
+from scrapers.utils import is_school_offer, clean_text, enrich_location
 
 class ApecScraper(BaseScraper):
     """Scraper for Apec.fr using the CMS webservices API."""
@@ -94,16 +92,45 @@ class ApecScraper(BaseScraper):
 
         return all_offers
 
+    # Programs/platforms that post on behalf of real companies — not the actual employer
+    INTERMEDIARY_NAMES = {
+        "engagement jeunes",
+        "groupe talents handicap",
+        "talents handicap",
+        "1jeune1solution",
+        "handi-cv",
+        "handicv",
+    }
+
+    def _extract_company_from_description(self, html: str) -> Optional[str]:
+        """Extract real company name from the first phrase of texteHtmlEntreprise."""
+        import re
+        text = re.sub(r"<[^>]+>", "", html).strip()
+        if not text:
+            return None
+        # Company name is the text before the first comma, colon, or newline
+        match = re.match(r"^([^,:\n]{2,60})[,:\n]", text)
+        if match:
+            return match.group(1).strip()
+        return None
+
     def parse_offer(self, raw_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         try:
             oid = raw_data.get("numeroOffre")
             if not oid:
                 return None
-            
+
             full_details = raw_data.get("full_details", {})
-            
+
             title = raw_data.get("intitule") or full_details.get("intitule") or ""
-            company = raw_data.get("nomCommercial") or full_details.get("nomEntreprise") or "Entreprise confidentielle"
+            company = raw_data.get("nomCommercial") or full_details.get("nomCommercialEtablissement") or "Entreprise confidentielle"
+
+            # If company is a known intermediary program, extract the real employer
+            # from the company description text (it starts with the real company name)
+            if company.lower().strip() in self.INTERMEDIARY_NAMES:
+                real = self._extract_company_from_description(full_details.get("texteHtmlEntreprise", ""))
+                if real:
+                    company = real
             location = raw_data.get("lieuTexte") or full_details.get("lieu") or ""
             
             # Combine multiple description fields for a full text

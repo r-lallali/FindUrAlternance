@@ -1662,6 +1662,17 @@ async def fix_company_aliases(db: Session = Depends(get_db), _: None = Depends(v
             Offer.company.ilike(alias)
         ).update({"company": canonical}, synchronize_session=False)
         updated += count
+
+    # Retroactive fix: "Groupe BPCE" offers located in Île-de-France
+    # are actually from Caisse d'Épargne Ile-de-France (the raw scrape company was "BPCE")
+    IDF_DEPTS = ["75", "77", "78", "91", "92", "93", "94", "95"]
+    idf_fix = db.query(Offer).filter(
+        Offer.company == "Groupe BPCE",
+        Offer.department.in_(IDF_DEPTS),
+    ).update({"company": "Caisse d'Épargne Ile-de-France"}, synchronize_session=False)
+    if idf_fix:
+        updated += idf_fix
+
     db.commit()
     global_stats_cache.clear()
     return {"updated": updated, "message": f"{updated} offres mises à jour avec les noms canoniques."}

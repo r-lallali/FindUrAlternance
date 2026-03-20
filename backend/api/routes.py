@@ -298,21 +298,7 @@ async def get_offers(
     if category:
         query = query.filter(Offer.category.ilike(category))
     if company:
-        search_term = company.lower()
-        if search_term.startswith("groupe "):
-            search_term = search_term.replace("groupe ", "").strip()
-        elif search_term.startswith("entreprise "):
-            search_term = search_term.replace("entreprise ", "").strip()
-            
-        search_filter = f"%{search_term}%"
-        query = query.filter(
-            or_(
-                func.trim(Offer.company).ilike(company),
-                Offer.company.ilike(search_filter),
-                Offer.title.ilike(search_filter),
-                Offer.description.ilike(search_filter)
-            )
-        )
+        query = query.filter(func.trim(Offer.company).ilike(company))
     if location:
         from scrapers.utils import extract_department
         dept_match = extract_department(location)
@@ -728,25 +714,12 @@ async def get_tech_stats(
             "desc_normalized": desc_text.lower() if desc_text else ""
         })
 
-    # 4. Resolve accurate company counts (Top 15 names, but counts include mentions)
-    top15_names = [name for name, _ in company_field_counter.most_common(15)]
+    # 4. Resolve exact company counts (Top 15 names)
+    top15_names = company_field_counter.most_common(15)
     top_companies_resolved = []
 
-    for name in top15_names:
-        lower_name = name.lower()
-        search_term = lower_name
-        if search_term.startswith("groupe "):
-            search_term = search_term.replace("groupe ", "").strip()
-            
-        accurate_count = 0
-        for m in match_list:
-            if (search_term in m["comp_normalized"] or
-                search_term in m["title_normalized"] or
-                search_term in m["desc_normalized"]):
-                accurate_count += 1
-        top_companies_resolved.append({"name": name, "count": accurate_count})
-
-    top_companies_resolved.sort(key=lambda x: x["count"], reverse=True)
+    for name, exact_count in top15_names:
+        top_companies_resolved.append({"name": name, "count": exact_count})
 
     def format_counter(counter, limit=15):
         return [{"name": name, "count": count} for name, count in counter.most_common(limit)]

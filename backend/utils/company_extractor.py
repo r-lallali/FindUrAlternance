@@ -44,7 +44,7 @@ _BLACKLIST_ORG = {
     # Common false positives in job ads
     "client", "clients", "partenaire", "recruteur",
     "microsoft", "google", "aws", "azure", "linkedin",  # brands often cited in tech stacks
-    "rh mania", "jobmania",
+    "rh mania", "jobmania", "cadre emploi", "cadremploi", "figaro classifieds",
 }
 
 # Context patterns that strongly indicate the following ORG is the real employer

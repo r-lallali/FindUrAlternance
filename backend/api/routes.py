@@ -842,7 +842,7 @@ async def run_global_scrape():
     from scrapers import (
         LaBonneAlternanceScraper, FranceTravailScraper,
         LinkedInScraper, HelloWorkScraper, WelcomeToTheJungleScraper,
-        ApecScraper, MeteojobScraper, RHAlternanceScraper
+        ApecScraper, MeteojobScraper, RHAlternanceScraper, CadremploiScraper
     )
     from database import SessionLocal
     import asyncio
@@ -856,6 +856,7 @@ async def run_global_scrape():
         ("apec", ApecScraper),
         ("meteojob", MeteojobScraper),
         ("rhalternance", RHAlternanceScraper),
+        ("cadremploi", CadremploiScraper),
     ]
 
     global global_scraping_status
@@ -1044,7 +1045,7 @@ async def trigger_scrape(source: str, background_tasks: BackgroundTasks, db: Ses
     from scrapers import (
         LaBonneAlternanceScraper, FranceTravailScraper,
         LinkedInScraper, HelloWorkScraper, WelcomeToTheJungleScraper,
-        ApecScraper, MeteojobScraper
+        ApecScraper, MeteojobScraper, RHAlternanceScraper, CadremploiScraper
     )
 
     scrapers = {
@@ -1056,6 +1057,7 @@ async def trigger_scrape(source: str, background_tasks: BackgroundTasks, db: Ses
         "apec": ApecScraper,
         "meteojob": MeteojobScraper,
         "rhalternance": RHAlternanceScraper,
+        "cadremploi": CadremploiScraper,
     }
 
     if source not in scrapers:
@@ -1217,9 +1219,9 @@ async def trigger_scrape_all(background_tasks: BackgroundTasks, db: Session = De
     from scrapers import (
         LaBonneAlternanceScraper, FranceTravailScraper,
         LinkedInScraper, HelloWorkScraper, WelcomeToTheJungleScraper,
-        ApecScraper, MeteojobScraper
+        ApecScraper, MeteojobScraper, RHAlternanceScraper, CadremploiScraper
     )
-    scrapers_list = ["labonnealternance", "francetravail", "linkedin", "hellowork", "wttj", "apec", "meteojob"]
+    scrapers_list = ["labonnealternance", "francetravail", "linkedin", "hellowork", "wttj", "apec", "meteojob", "rhalternance", "cadremploi"]
     
     results = []
     for source_name in scrapers_list:

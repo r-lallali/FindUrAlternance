@@ -298,7 +298,21 @@ async def get_offers(
     if category:
         query = query.filter(Offer.category.ilike(category))
     if company:
-        query = query.filter(func.trim(Offer.company).ilike(company))
+        search_term = company.lower()
+        if search_term.startswith("groupe "):
+            search_term = search_term.replace("groupe ", "").strip()
+        elif search_term.startswith("entreprise "):
+            search_term = search_term.replace("entreprise ", "").strip()
+            
+        search_filter = f"%{search_term}%"
+        query = query.filter(
+            or_(
+                func.trim(Offer.company).ilike(company),
+                Offer.company.ilike(search_filter),
+                Offer.title.ilike(search_filter),
+                Offer.description.ilike(search_filter)
+            )
+        )
     if location:
         from scrapers.utils import extract_department
         dept_match = extract_department(location)

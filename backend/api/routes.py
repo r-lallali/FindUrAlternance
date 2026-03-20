@@ -1693,11 +1693,12 @@ async def cleanup_school_offers(db: Session = Depends(get_db), _: None = Depends
 @router.post("/admin/fix-company-aliases")
 async def fix_company_aliases(db: Session = Depends(get_db), _: None = Depends(verify_admin_key)):
     """Update existing offers to use canonical company names (e.g. 'TF1' → 'Groupe TF1')."""
+    from sqlalchemy import func
     updated = 0
     for alias, canonical in COMPANY_ALIASES.items():
-        # Match case-insensitively via ilike
+        # Match case-insensitively via ilike and ignore trailing/leading whitespaces
         count = db.query(Offer).filter(
-            Offer.company.ilike(alias)
+            func.trim(Offer.company).ilike(alias)
         ).update({"company": canonical}, synchronize_session=False)
         updated += count
 

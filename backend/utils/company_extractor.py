@@ -44,16 +44,17 @@ _BLACKLIST_ORG = {
     # Common false positives in job ads
     "client", "clients", "partenaire", "recruteur",
     "microsoft", "google", "aws", "azure", "linkedin",  # brands often cited in tech stacks
+    "rh mania", "jobmania",
 }
 
 # Context patterns that strongly indicate the following ORG is the real employer
 _EMPLOYER_PATTERNS = [
-    r"notre client[e]?,?\s+(?P<org>[A-ZÀÂÉÈÊÔÙÛÎ][A-Za-zÀ-ÿ\s\-&\.]{1,50})[,\s]",
-    r"pour le compte de\s+(?P<org>[A-ZÀÂÉÈÊÔÙÛÎ][A-Za-zÀ-ÿ\s\-&\.]{1,50})[,\s\.]",
-    r"(?:rejoignez|intégrez)\s+(?:la société|le groupe|l[''']entreprise|la structure)?\s*(?P<org>[A-ZÀÂÉÈÊÔÙÛÎ][A-Za-zÀ-ÿ\s\-&\.]{1,50})[,\s\.]",
-    r"(?:société|entreprise|groupe|cabinet)\s+(?P<org>[A-ZÀÂÉÈÊÔÙÛÎ][A-Za-zÀ-ÿ\s\-&\.]{1,50})\s+(?:recrute|recherche|propose)",
-    r"(?:recrute|recherche) pour\s+(?:son client|l[''']un de ses clients)?\s+(?P<org>[A-ZÀÂÉÈÊÔÙÛÎ][A-Za-zÀ-ÿ\s\-&\.]{1,50})[,\s\.]",
-    r"(?:au sein de|chez)\s+(?P<org>[A-ZÀÂÉÈÊÔÙÛÎ][A-Za-zÀ-ÿ\s\-&\.]{1,50})[,\s\.]",
+    r"notre client[e]?,?[\s:\-]+(?P<org>[A-ZÀÂÉÈÊÔÙÛÎ][A-Za-zÀ-ÿ\s\-&\.]{1,50})(?:[,\s\.!:]|$)",
+    r"pour le compte de[\s:\-]+(?P<org>[A-ZÀÂÉÈÊÔÙÛÎ][A-Za-zÀ-ÿ\s\-&\.]{1,50})(?:[,\s\.!:]|$)",
+    r"(?:rejoignez|intégrez)\s+(?:la société|le groupe|l[''']entreprise|la structure)?[\s:\-]+(?P<org>[A-ZÀÂÉÈÊÔÙÛÎ][A-Za-zÀ-ÿ\s\-&\.]{1,50})(?:[,\s\.!:]|$)",
+    r"(?:société|entreprise|groupe|cabinet)[\s:\-]+(?P<org>[A-ZÀÂÉÈÊÔÙÛÎ][A-Za-zÀ-ÿ\s\-&\.]{1,50})\s+(?:recrute|recherche|propose)",
+    r"(?:recrute|recherche) pour\s+(?:son client|l[''']un de ses clients|le compte de son client)?[\s:\-]+(?P<org>[A-ZÀÂÉÈÊÔÙÛÎ][A-Za-zÀ-ÿ\s\-&\.]{1,50})(?:[,\s\.!:]|$)",
+    r"(?:au sein de|chez)[\s:\-]+(?P<org>[A-ZÀÂÉÈÊÔÙÛÎ][A-Za-zÀ-ÿ\s\-&\.]{1,50})(?:[,\s\.!:]|$)",
 ]
 _EMPLOYER_RE = [re.compile(p, re.IGNORECASE) for p in _EMPLOYER_PATTERNS]
 

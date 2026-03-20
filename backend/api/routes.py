@@ -1678,6 +1678,36 @@ async def fix_company_aliases(db: Session = Depends(get_db), _: None = Depends(v
     return {"updated": updated, "message": f"{updated} offres mises à jour avec les noms canoniques."}
 
 
+@router.post("/admin/re-extract-companies")
+async def re_extract_companies(background_tasks: BackgroundTasks, db: Session = Depends(get_db), _: None = Depends(verify_admin_key)):
+    """Re-extract company name from the description for all active offers (runs in background)."""
+    total = db.query(Offer).filter(Offer.is_active == True).count()  # noqa: E712
+
+    async def do_extract():
+        from utils.company_extractor import extract_company_from_description
+        from database import SessionLocal
+        bg_db = SessionLocal()
+        try:
+            batch_size = 500
+            offset = 0
+            while True:
+                offers = bg_db.query(Offer).filter(Offer.is_active == True).offset(offset).limit(batch_size).all()  # noqa: E712
+                if not offers:
+                    break
+                for offer in offers:
+                    new_company = extract_company_from_description(offer.description or "", offer.company or "")
+                    if new_company and new_company != offer.company:
+                        offer.company = new_company
+                bg_db.commit()
+                offset += batch_size
+            global_stats_cache.clear()
+        finally:
+            bg_db.close()
+
+    background_tasks.add_task(do_extract)
+    return {"queued": total, "message": f"{total} offres en file d'extraction d'entreprise (tâche de fond)."}
+
+
 @router.post("/admin/reclassify-categories")
 async def reclassify_categories(background_tasks: BackgroundTasks, db: Session = Depends(get_db), _: None = Depends(verify_admin_key)):
     """Reclassify all offers with the new RH Alternance category taxonomy (runs in background)."""

@@ -1684,6 +1684,7 @@ async def fix_company_aliases(db: Session = Depends(get_db), _: None = Depends(v
 async def re_extract_companies(db: Session = Depends(get_db), _: None = Depends(verify_admin_key)):
     """Re-extract company name from the description for all active offers, streaming progress."""
     from fastapi.responses import StreamingResponse
+    import asyncio
     total = db.query(Offer).filter(Offer.is_active == True).count()  # noqa: E712
 
     async def do_extract():
@@ -1691,8 +1692,9 @@ async def re_extract_companies(db: Session = Depends(get_db), _: None = Depends(
         from database import SessionLocal
         bg_db = SessionLocal()
         try:
-            yield f"Démarrage de la ré-extraction sur {total} annonces actives...\n\n"
-            batch_size = 500
+            # Force flush cloudflare/nginx buffers by sending 2KB of spaces
+            yield (" " * 2048) + f"\nDémarrage de la ré-extraction sur {total} annonces actives...\n\n"
+            batch_size = 50
             offset = 0
             processed = 0
             updated = 0
@@ -1709,8 +1711,11 @@ async def re_extract_companies(db: Session = Depends(get_db), _: None = Depends(
                 processed += len(offers)
                 offset += batch_size
                 
-                if processed % 1000 == 0 or processed == total:
-                    yield f"[{processed}/{total}] offres analysées... ({updated} noms mis à jour)\n"
+                yield f"[{processed}/{total}] offres analysées... ({updated} noms mis à jour)\n"
+                
+                # Rend la main à la boucle d'événements pour permettre à FastAPI d'envoyer les données
+                await asyncio.sleep(0.05)
+                
             global_stats_cache.clear()
             yield f"\nTerminé ! {processed} offres parcourues. {updated} noms d'entreprise corrigés en base de données.\n"
         finally:

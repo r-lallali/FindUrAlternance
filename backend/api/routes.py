@@ -1057,61 +1057,6 @@ async def run_global_scrape():
         global_scraping_status["is_running"] = False
 
 
-@router.get("/admin/debug-counts")
-async def debug_counts(db: Session = Depends(get_db)):
-    # This will return the exact breakdown of the discrepancy
-    offers = _base_query(db).all()
-    match_list = []
-    for o in offers:
-        match_list.append({
-            "id": o.id,
-            "comp_orig": o.company or "",
-            "comp_normalized": (o.company or "").lower().strip(),
-            "title_normalized": (o.title or "").lower(),
-            "desc_normalized": (o.description or "").lower()
-        })
-        
-    debug_res = {}
-    for name in ["Groupe BPCE", "Groupe Crédit Agricole"]:
-        lower_name = name.lower()
-        search_term = lower_name.replace("groupe ", "").strip()
-        
-        py_matches = set()
-        for m in match_list:
-            if (search_term in m["comp_normalized"] or
-                search_term in m["title_normalized"] or
-                search_term in m["desc_normalized"]):
-                py_matches.add(m["id"])
-                
-        search_filter = f"%{search_term}%"
-        sql_query = _base_query(db).filter(
-            or_(
-                func.trim(Offer.company).ilike(name),
-                Offer.company.ilike(search_filter),
-                Offer.title.ilike(search_filter),
-                Offer.description.ilike(search_filter)
-            )
-        )
-        # Apply the SAME filters get_offers applies for safety
-        sql_matches = {o.id for o in sql_query.all()}
-        
-        diff_py = list(py_matches - sql_matches)
-        diff_sql = list(sql_matches - py_matches)
-        
-        py_ex = db.query(Offer).filter(Offer.id.in_(diff_py[:2])).all() if diff_py else []
-        
-        debug_res[name] = {
-            "python_count": len(py_matches),
-            "sql_count": len(sql_matches),
-            "only_in_python_count": len(diff_py),
-            "only_in_python_ids": diff_py,
-            "examples": [
-                {"id": o.id, "company": o.company, "title": o.title, "desc": (o.description or "")[:50]}
-                for o in py_ex
-            ]
-        }
-    return debug_res
-
 @router.post("/scrape/{source}", response_model=ScrapingStatus)
 async def trigger_scrape(source: str, background_tasks: BackgroundTasks, db: Session = Depends(get_db), _: None = Depends(verify_admin_key)):
     """Manually trigger scraping for a specific source."""

@@ -1679,19 +1679,30 @@ async def fix_company_aliases(db: Session = Depends(get_db), _: None = Depends(v
 
 
 @router.post("/admin/reclassify-categories")
-async def reclassify_categories(db: Session = Depends(get_db), _: None = Depends(verify_admin_key)):
-    """Reclassify all offers with the new RH Alternance category taxonomy."""
-    from scrapers.skills_extractor import categorize_offer
+async def reclassify_categories(background_tasks: BackgroundTasks, db: Session = Depends(get_db), _: None = Depends(verify_admin_key)):
+    """Reclassify all offers with the new RH Alternance category taxonomy (runs in background)."""
+    total = db.query(Offer).filter(Offer.is_active == True).count()  # noqa: E712
 
-    offers = db.query(Offer).filter(Offer.is_active == True).all()  # noqa: E712
-    updated = 0
+    async def do_reclassify():
+        from scrapers.skills_extractor import categorize_offer
+        from database import SessionLocal
+        bg_db = SessionLocal()
+        try:
+            batch_size = 500
+            offset = 0
+            while True:
+                offers = bg_db.query(Offer).filter(Offer.is_active == True).offset(offset).limit(batch_size).all()  # noqa: E712
+                if not offers:
+                    break
+                for offer in offers:
+                    new_cat = categorize_offer(offer.title or "", offer.description or "")
+                    if new_cat != offer.category:
+                        offer.category = new_cat
+                bg_db.commit()
+                offset += batch_size
+            global_stats_cache.clear()
+        finally:
+            bg_db.close()
 
-    for offer in offers:
-        new_cat = categorize_offer(offer.title or "", offer.description or "")
-        if new_cat != offer.category:
-            offer.category = new_cat
-            updated += 1
-
-    db.commit()
-    global_stats_cache.clear()
-    return {"total": len(offers), "updated": updated, "message": f"{updated} offres reclassifiées."}
+    background_tasks.add_task(do_reclassify)
+    return {"queued": total, "message": f"{total} offres en file de reclassification (tâche de fond)."}

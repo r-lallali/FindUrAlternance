@@ -250,6 +250,7 @@ COMPANY_ALIASES: dict = {
     "lvmh moet hennessy": "LVMH",
     "lvmh group": "LVMH",
     # Groupe BPCE (holding uniquement — entités explicitement nommées)
+    "bpce": "Groupe BPCE",
     "bpce sa": "Groupe BPCE",
     "groupe bpce": "Groupe BPCE",
     # Caisses d'Épargne régionales — restent indépendantes

@@ -45,6 +45,8 @@ _BLACKLIST_ORG = {
     "client", "clients", "partenaire", "recruteur",
     "microsoft", "google", "aws", "azure", "linkedin",  # brands often cited in tech stacks
     "rh mania", "jobmania", "cadre emploi", "cadremploi", "figaro classifieds",
+    "nous", "vous", "notre client", "notre entreprise", "l'entreprise", "la société",
+    "le groupe", "notre société", "notre groupe", "notre cabinet", "le cabinet",
 }
 
 # Context patterns that strongly indicate the following ORG is the real employer

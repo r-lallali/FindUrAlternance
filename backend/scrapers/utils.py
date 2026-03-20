@@ -218,6 +218,8 @@ def normalize_company(name: Optional[str]) -> str:
 
 # Canonical company name aliases: any key (case-insensitive exact match) → canonical value
 COMPANY_ALIASES: dict = {
+    "thales": "Thales",
+    "thalès": "Thales",
     "tf1": "Groupe TF1",
     "tf1 group": "Groupe TF1",
     "tf1 sa": "Groupe TF1",

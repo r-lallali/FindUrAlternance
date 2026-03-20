@@ -14,56 +14,149 @@ from typing import Dict, List, Optional, Set
 # ────────────────────────────────────────────────────────
 
 CATEGORIES = {
-    "Administration & Comptabilité": [
-        r"\bpaie\b", r"\badministration du personnel\b", r"\badministratif\b", r"\badministrative\b",
-        r"\bsecr[eé]taire\b", r"\bcomptabilit[eé]\b", r"\bcomptable\b", r"\bassistant(e) de direction\b",
-        r"\bassistant(e) de gestion\b", r"\bfacturation\b", r"\bsaisie\b"
+    "Agriculture et élevage": [
+        r"\bagriculture\b", r"\b[eé]levage\b", r"\bagricole\b", r"\bagronome\b", r"\bviticulture\b",
+        r"\bmaraich[eé]?r\b", r"\bharticulteur\b", r"\bforestier\b", r"\bsylviculture\b",
+        r"\bv[eé]t[eé]rinaire\b", r"\banimal\b", r"\bzootechnie\b",
     ],
-    "Cloud, Infrastructure & Cybersécurité": [
-        r"\binfrastructure\b", r"\bsyst[eè]me(s)?\b", r"\br[eé]zeau(x)?\b", r"\bcloud\b", r"\bdevops\b",
-        r"\bing[eé]nieur d[eé]ploiement\b", r"\badministrateur\b", r"\bsysadmin\b", r"\barchitecte\b",
-        r"\bs[eé]curit[eé]\b", r"\bcybers[eé]curit[eé]\b", r"\bcyber\b", r"\bsecops\b", r"\bazure\b", r"\baws\b"
+    "Audiovisuel et spectacle": [
+        r"\baudiovisuel\b", r"\bspectacle\b", r"\bcinéma\b", r"\bcinema\b", r"\bradio\b", r"\bt[eé]l[eé]vision\b",
+        r"\bproduction audiovisuelle\b", r"\br[eé]alisateur\b", r"\bcam[eé]raman\b", r"\bsound design\b",
+        r"\bmonteur vid[eé]o\b", r"\banimateur\b", r"\bartisteq\b",
     ],
-    "Conseil & Gestion de Projet": [
-        r"\bchef(fe)? de projet\b", r"\bproject manager\b", r"\bpmo\b", r"\bma[iî]trise d.?ouvrage\b",
-        r"\bmoa\b", r"\bama\b", r"\bamoe\b", r"\bconsultant(e)?\b", r"\bsyst[eè]me d.information\b",
-        r"\berp\b", r"\bsap\b", r"\btransformation digitale\b", r"\bscrum master\b", r"\bagile\b"
+    "Automobile": [
+        r"\bautomobile\b", r"\bm[eé]canique\b", r"\bcarrosserie\b", r"\bconcessionnaire\b",
+        r"\btech?nicien automobile\b", r"\br[eé]paration automobile\b", r"\bpeinture auto\b",
+        r"\bvehicule\b", r"\bv[eé]hicule\b", r"\belectronique automobile\b",
     ],
-    "Data, IA & Business Intelligence": [
-        r"\bdata\b", r"\bdonn[eé]es\b", r"\bmachine learning\b", r"\bintelligence artificielle\b", r"\bia\b",
-        r"\bi\.a\.\b", r"\bbig data\b", r"\bdata analyst\b", r"\bdata scientist\b", r"\banalyste de donn[eé]es\b",
-        r"\bdata engineer\b", r"\bbusiness intelligence\b", r"\bbi\b", r"\betl\b"
+    "Bâtiment et travaux publics (BTP)": [
+        r"\bbtp\b", r"\bb[âa]timent\b", r"\btravaux publics\b", r"\bconstruction\b", r"\bgénie civil\b",
+        r"\barchitecte\b", r"\barchitecture\b", r"\btopographe\b", r"\bchantier\b",
+        r"\bplombier\b", r"\b[eé]lectricien\b", r"\bma[çc]on\b", r"\bcouvreur\b",
+        r"\bcharpentier\b", r"\bmenuisier\b", r"\b[eé]lectricit[eé]\b", r"\bthermal\b",
     ],
-    "Développement Software & Web": [
-        r"\bd[eé]veloppeur\b", r"\bd[eé]veloppeuse\b", r"\bdeveloper\b", r"\bfront.?end\b", r"\bback.?end\b",
-        r"\bfull.?stack\b", r"\bing[eé]nieur logicielle?\b", r"\bsoftware engineer\b", r"\bwebmaster\b",
-        r"\btech lead\b", r"\bprogrammeur\b", r"\bint[eé]grateur\b"
+    "Commerce et distribution": [
+        r"\bvente\b", r"\bcommercial(e)?\b", r"\bdistribution\b", r"\bgrande surface\b",
+        r"\bgrande distribution\b", r"\bresponsable de rayon\b", r"\bchef de rayon\b",
+        r"\bcaissier\b", r"\bvendeur\b", r"\bachat\b", r"\bapprovisionn\b",
+        r"\bm[eé]tier du commerce\b", r"\brelation client\b", r"\bsales\b",
+        r"\baccount manager\b", r"\bbusiness developer\b", r"\bcharg[eé](e)? d.?affaires\b",
     ],
-    "Finance & Audit": [
-        r"\bfinance\b", r"\bcontr[ôo]leur de gestion\b", r"\baudit\b", r"\btr[eé]sorerie\b", r"\bbanque\b",
-        r"\bassurance\b", r"\banalyste financier\b", r"\binvestissement\b", r"\bcash management\b"
+    "Communication et marketing": [
+        r"\bmarketing\b", r"\bcommunication\b", r"\bseo\b", r"\bsea\b", r"\bcommunity manager\b",
+        r"\btraffic manager\b", r"\be-commerce\b", r"\bacquisition\b", r"\bcontent manager\b",
+        r"\bgraphiste\b", r"\bdirecteur artistique\b", r"\b[eé]v[eé]nementiel\b", r"\brelations? presse\b",
+        r"\binfluenceur\b", r"\bdigital marketing\b", r"\bbrand\b", r"\bstrat[eé]gie\b",
     ],
-    "Marketing, Com & Digital": [
-        r"\bmarketing\b", r"\bdigital\b", r"\bseo\b", r"\bsea\b", r"\bcommunity manager\b", r"\btraffic manager\b",
-        r"\be-commerce\b", r"\bacquisition\b", r"\bcommunication\b", r"\bcomm\b", r"\bcr[eé]ation\b",
-        r"\bcontent manager\b", r"\bgraphiste\b", r"\bdirecteur artistique\b", r"\b[eé]v[eé]nementiel\b"
+    "Culture et patrimoine": [
+        r"\bpatrimoine\b", r"\bmus[eé]e\b", r"\bculture\b", r"\bculturel\b", r"\bbibliothequ\b",
+        r"\barchives\b", r"\bconservateur\b", r"\barch[eé]ologie\b", r"\bbeaux.arts\b",
+        r"\bm[eé]diation culturelle\b",
     ],
-    "Produit & UX/UI Design": [
-        r"\bux\b", r"\bui\b", r"\bdesign\b", r"\bdesigner\b", r"\bproduct owner\b", r"\bproduct manager\b",
-        r"\bproduit\b", r"\bchef(fe)? de produit\b", r"\bwebdesigner\b", r"\bmaquettage\b"
+    "Défense et sécurité": [
+        r"\bd[eé]fense\b", r"\bs[eé]curit[eé]\b", r"\barm[eé]e\b", r"\bpolicier\b",
+        r"\bgendarmerie\b", r"\bsurveillance\b", r"\bg[eé]n[eé]ral de s[eé]curit[eé]\b",
+        r"\bcybers[eé]curit[eé]\b", r"\bcybersecurity\b", r"\bsecops\b", r"\bsoc\b",
+        r"\bpent?est\b", r"\brisque\b", r"\bagent de s[eé]curit[eé]\b",
     ],
-    "Ressources Humaines & Recrutement": [
-        r"\brecruteur\b", r"\brh\b", r"\bressources humaines\b", r"\btalent acquisition\b", r"\bsourcing\b",
-        r"\bcharg[eé](e)? de recrutement\b", r"\bformation\b", r"\bgestion des talents\b", r"\bdrh\b"
+    "Droit et justice": [
+        r"\bdroit\b", r"\bjuridique\b", r"\bjustice\b", r"\bavocat\b", r"\bnotaire\b",
+        r"\bparalegal\b", r"\bjuriste\b", r"\bcontrat\b", r"\blegale?\b", r"\bcompliance\b",
+        r"\blitiges?\b", r"\btribunal\b",
     ],
-    "Support, Maintenance & IT Ops": [
-        r"\bsupport\b", r"\bhelp desk\b", r"\bassistance technique\b", r"\btechnicien(ne)?\b",
-        r"\bmaintenance informatique\b", r"\bd[eé]pannage\b", r"\bservice client\b"
+    "Enseignement et formation": [
+        r"\benseignement\b", r"\bformation\b", r"\bpedagogie\b", r"\bp[eé]dagogi\b",
+        r"\bprofesseur\b", r"\bformateur\b", r"\bcoach\b", r"\banimateur p[eé]dagogique\b",
+        r"\b[eé]ducation\b", r"\btutor\b", r"\blycee\b", r"\buniversit[eé]\b",
     ],
-    "Vente & Business Development": [
-        r"\bvente\b", r"\bcommerce\b", r"\bcommercial(e)?\b", r"\brelation client\b", r"\bbusiness developer\b",
-        r"\bsales\b", r"\baccount manager\b", r"\bcharg[eé](e)? d.?affaires\b", r"\badv\b"
-    ]
+    "Environnement": [
+        r"\benvironnement\b", r"\b[eé]cologie\b", r"\bd[eé]veloppement durable\b", r"\bqhse\b",
+        r"\bqse\b", r"\brse\b", r"\b[eé]nergie renouvelable\b", r"\bsolaire\b", r"\b[eé]olien\b",
+        r"\bgestion des d[eé]chets\b", r"\bbiodiversit[eé]\b", r"\bhydrogene\b",
+    ],
+    "Finance, banque et assurance": [
+        r"\bfinance\b", r"\bbanque\b", r"\bassurance\b", r"\bcontr[ôo]leur de gestion\b",
+        r"\baudit\b", r"\btr[eé]sorerie\b", r"\banalyste financier\b", r"\binvestissement\b",
+        r"\bcash management\b", r"\bcomptabilit[eé]\b", r"\bcomptable\b", r"\bfiscalit[eé]\b",
+        r"\bfinancier\b", r"\bcredit\b", r"\bactif\b", r"\bpaie\b", r"\bpayone\b",
+    ],
+    "Gestion administrative et ressources humaines": [
+        r"\bressources humaines\b", r"\brh\b(?! alternance)", r"\brecrutement\b", r"\brecruteur\b",
+        r"\badministratif\b", r"\badministration\b", r"\bsecr[eé]taire\b", r"\bassistant(e) de direction\b",
+        r"\bassistant(e) de gestion\b", r"\btalent acquisition\b", r"\bgestion des talents\b",
+        r"\bdrh\b", r"\bcharg[eé](e)? de recrutement\b", r"\bpaie\b",
+    ],
+    "Hôtellerie et restauration": [
+        r"\bh[oô]tellerie\b", r"\brestauration\b", r"\bcuisinier\b", r"\bchef de cuisine\b",
+        r"\bserveur\b", r"\bh[oô]tel\b", r"\br[eé]ception\b", r"\bfood\b", r"\bbarmaid?\b",
+        r"\bsommelière?\b", r"\bpatisserie\b", r"\bboulangerie\b", r"\btraiteur\b",
+    ],
+    "Immobilier": [
+        r"\bimmobilier\b", r"\bagent immobilier\b", r"\bgestion locative\b", r"\bpropri[eé]t[eé]\b",
+        r"\bpromoteur\b", r"\btransaction immobili[eè]re\b", r"\bbailleur\b", r"\bloyer\b",
+    ],
+    "Industrie - Chimie": [
+        r"\bchimie\b", r"\bchimiste\b", r"\blaboratoire\b", r"\banalyse chimique\b",
+        r"\bpharmacie\b", r"\bcosm[eé]tique\b", r"\bprocéd[eé]s industriels\b",
+        r"\bpétrochimie\b", r"\bplastique\b", r"\bcaoutchouc\b",
+    ],
+    "Industries": [
+        r"\bindustriel\b", r"\bindustrie\b", r"\bproduction\b", r"\bopérateur\b",
+        r"\bcontr[ôo]le qualit[eé]\b", r"\bqualit[eé]\b", r"\blean\b", r"\bsix sigma\b",
+        r"\bam[eé]lioration continue\b", r"\bm[eé]thodes\b", r"\bing[eé]nieur(e)? d.[eé]tudes\b",
+        r"\bm[eé]canique industrielle\b", r"\baeronautique\b", r"\baéronautique\b",
+        r"\belectronique\b", r"\b[eé]lectronique\b", r"\bautomatisme\b",
+    ],
+    "Informatique, internet et télécommunication": [
+        r"\bd[eé]veloppeur\b", r"\bd[eé]veloppeuse\b", r"\bdeveloper\b", r"\bfront.?end\b",
+        r"\bback.?end\b", r"\bfull.?stack\b", r"\bsoftware engineer\b", r"\bwebmaster\b",
+        r"\btech lead\b", r"\bprogrammeur\b", r"\binfrastructure\b", r"\br[eé]seau(x)?\b",
+        r"\bcloud\b", r"\bdevops\b", r"\bsysadmin\b", r"\bdata\b", r"\bmachine learning\b",
+        r"\bintelligence artificielle\b", r"\bdata scientist\b", r"\bbusiness intelligence\b",
+        r"\bchef(fe)? de projet\b", r"\bproject manager\b", r"\bconsultant(e)? (it|informatique)\b",
+        r"\btransformation digitale\b", r"\bsi\b", r"\bux\b", r"\bui\b", r"\bdesigner\b",
+        r"\bproduct owner\b", r"\bproduct manager\b", r"\btelecommunication\b", r"\biot\b",
+        r"\binformatique\b", r"\bnumerique\b", r"\bnumérique\b", r"\bdigital\b",
+        r"\bcybersécurité\b", r"\bcybers[eé]curit[eé]\b",
+    ],
+    "Logistique et transport": [
+        r"\blogistique\b", r"\btransport\b", r"\bsupply chain\b", r"\bcha[iî]ne logistique\b",
+        r"\bentrepos?\b", r"\bmagasinier\b", r"\blivreur\b", r"\bchauffeur\b",
+        r"\bfret\b", r"\bdouane\b", r"\baffrètement\b", r"\bcariste\b",
+    ],
+    "Maintenance et entretien": [
+        r"\bmaintenance\b", r"\bentretien\b", r"\btechnicien(ne)? de maintenance\b",
+        r"\bd[eé]pannage\b", r"\br[eé]paration\b", r"\belectricien\b", r"\b[eé]lectricien\b",
+        r"\bCVC\b", r"\bfroid\b", r"\bclimatisation\b", r"\binstrumentation\b",
+    ],
+    "Mode": [
+        r"\bmode\b", r"\bvestimentaire\b", r"\btextile\b", r"\bcouture\b", r"\bmod[eé]lisme\b",
+        r"\bstyliste\b", r"\bluxe\b", r"\bmaroquinerie\b", r"\bjoaillerie\b", r"\bbijouterie\b",
+    ],
+    "Recherche": [
+        r"\brecherche\b", r"\br&d\b", r"\brecherche et d[eé]veloppement\b", r"\bchercheur\b",
+        r"\binnovation\b", r"\bscientifique\b", r"\bthèse\b", r"\bphd\b", r"\blaboratoire\b",
+        r"\bbiotechnologie\b", r"\bbiologie\b",
+    ],
+    "Santé": [
+        r"\bsant[eé]\b", r"\bm[eé]decin\b", r"\bm[eé]dical\b", r"\binfirmier\b",
+        r"\bpharmacien\b", r"\bkinesith[eé]rapeute\b", r"\bpsychologue\b", r"\borthophoniste\b",
+        r"\bnursing\b", r"\bh[oô]pital\b", r"\bclinique\b", r"\bsoin\b",
+    ],
+    "Service à la collectivité et service public": [
+        r"\bservice public\b", r"\bcollectivit[eé]\b", r"\bmairie\b", r"\bcommune\b",
+        r"\bcommunaut[eé] de communes\b", r"\brad[eé]p\b", r"\bfonction publique\b",
+        r"\bbureautique\b", r"\baccueil\b", r"\banimation socioculturelle\b",
+    ],
+    "Service à la personne": [
+        r"\bservice [aà] la personne\b", r"\baide [aà] domicile\b", r"\bgardeq?\b",
+        r"\bassistante? maternelle\b", r"\bauxiliaire de vie\b", r"\bpetite enfance\b",
+        r"\b[eé]ducateur\b", r"\banimateur\b", r"\bsocial\b", r"\bmsap\b",
+    ],
+    "Tourisme": [
+        r"\btourisme\b", r"\bgu[ia]de touristique\b", r"\bagence de voyage\b", r"\bh[oô]tel\b",
+        r"\breservation\b", r"\banimateur touristique\b", r"\bcruisi[eè]re\b",
+    ],
 }
 
 
@@ -506,28 +599,28 @@ def get_all_technology_names() -> List[str]:
     return sorted(all_names)
 
 
-def categorize_offer(title: str, description: Optional[str] = None) -> str:
-    """Guess the business category based on title and description."""
-    text = f"{title or ''} {description or ''}".lower()
-
-    # Give double weight to title
-    search_text = f"{(title or '').lower()} {(title or '').lower()} {text}"
+def categorize_offer(title: str, description: Optional[str] = None) -> Optional[str]:
+    """Guess the business category based on title and description. Returns None if uncertain."""
+    title_lower = (title or "").lower()
+    desc_lower = (description or "").lower()
+    # Title weighted 3x
+    search_text = f"{title_lower} {title_lower} {title_lower} {desc_lower}"
 
     max_score = 0
-    best_category = "Autre"
+    best_category = None
 
     for category, patterns in CATEGORIES.items():
         score = 0
         for pattern in patterns:
-            # count occurrences
             matches = len(re.findall(pattern, search_text))
-            score += matches * 2 if (title and category.lower() in title.lower()) else matches
+            score += matches
 
         if score > max_score:
             max_score = score
             best_category = category
 
-    return best_category
+    # Require minimum score to avoid random assignments
+    return best_category if max_score >= 2 else None
 
 
 __all__ = [

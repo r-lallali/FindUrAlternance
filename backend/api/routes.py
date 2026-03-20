@@ -1676,3 +1676,22 @@ async def fix_company_aliases(db: Session = Depends(get_db), _: None = Depends(v
     db.commit()
     global_stats_cache.clear()
     return {"updated": updated, "message": f"{updated} offres mises à jour avec les noms canoniques."}
+
+
+@router.post("/admin/reclassify-categories")
+async def reclassify_categories(db: Session = Depends(get_db), _: None = Depends(verify_admin_key)):
+    """Reclassify all offers with the new RH Alternance category taxonomy."""
+    from scrapers.skills_extractor import categorize_offer
+
+    offers = db.query(Offer).filter(Offer.is_active == True).all()  # noqa: E712
+    updated = 0
+
+    for offer in offers:
+        new_cat = categorize_offer(offer.title or "", offer.description or "")
+        if new_cat != offer.category:
+            offer.category = new_cat
+            updated += 1
+
+    db.commit()
+    global_stats_cache.clear()
+    return {"total": len(offers), "updated": updated, "message": f"{updated} offres reclassifiées."}

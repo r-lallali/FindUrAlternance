@@ -1013,6 +1013,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const sidebar = document.querySelector('.sidebar');
         if (sidebar) sidebar.classList.remove('hidden');
+        const sidebarToggleBtn = document.getElementById('sidebarToggle');
+        if (sidebarToggleBtn) sidebarToggleBtn.style.display = '';
 
         // Update tab indicator position and color
         const tabsContainer = document.querySelector('.header-tabs');

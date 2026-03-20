@@ -1681,8 +1681,9 @@ async def fix_company_aliases(db: Session = Depends(get_db), _: None = Depends(v
 
 
 @router.post("/admin/re-extract-companies")
-async def re_extract_companies(background_tasks: BackgroundTasks, db: Session = Depends(get_db), _: None = Depends(verify_admin_key)):
-    """Re-extract company name from the description for all active offers (runs in background)."""
+async def re_extract_companies(db: Session = Depends(get_db), _: None = Depends(verify_admin_key)):
+    """Re-extract company name from the description for all active offers, streaming progress."""
+    from fastapi.responses import StreamingResponse
     total = db.query(Offer).filter(Offer.is_active == True).count()  # noqa: E712
 
     async def do_extract():
@@ -1690,8 +1691,11 @@ async def re_extract_companies(background_tasks: BackgroundTasks, db: Session = 
         from database import SessionLocal
         bg_db = SessionLocal()
         try:
+            yield f"Démarrage de la ré-extraction sur {total} annonces actives...\n\n"
             batch_size = 500
             offset = 0
+            processed = 0
+            updated = 0
             while True:
                 offers = bg_db.query(Offer).filter(Offer.is_active == True).offset(offset).limit(batch_size).all()  # noqa: E712
                 if not offers:
@@ -1700,14 +1704,19 @@ async def re_extract_companies(background_tasks: BackgroundTasks, db: Session = 
                     new_company = extract_company_from_description(offer.description or "", offer.company or "")
                     if new_company and new_company != offer.company:
                         offer.company = new_company
+                        updated += 1
                 bg_db.commit()
+                processed += len(offers)
                 offset += batch_size
+                
+                if processed % 1000 == 0 or processed == total:
+                    yield f"[{processed}/{total}] offres analysées... ({updated} noms mis à jour)\n"
             global_stats_cache.clear()
+            yield f"\nTerminé ! {processed} offres parcourues. {updated} noms d'entreprise corrigés en base de données.\n"
         finally:
             bg_db.close()
 
-    background_tasks.add_task(do_extract)
-    return {"queued": total, "message": f"{total} offres en file d'extraction d'entreprise (tâche de fond)."}
+    return StreamingResponse(do_extract(), media_type="text/plain")
 
 
 @router.post("/admin/reclassify-categories")

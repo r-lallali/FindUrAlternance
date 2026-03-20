@@ -19,7 +19,7 @@ SCHOOL_KEYWORDS = [
     "isep", "ece", "esilv", "emlyon", "escp", "essec", "hec",
     "kedge", "skema", "neoma", "audencia", "grenoble em",
     # Alternance-focused training schools (often post as "companies")
-    "iscod", "oktogone", "oktogone group", "icademie", "i-cademie", "livecampus", "live campus",
+    "ifcv", "iscod", "oktogone", "oktogone group", "icademie", "i-cademie", "livecampus", "live campus",
     "aurlom", "2i academy", "2iacademy", "openclassrooms", "open classrooms",
     "studi", "doranco", "ifocop", "aftec", "pigier", "cogefi",
     "comptalia", "aftral", "afpa", "greta", "cesi", "enaco",
@@ -104,7 +104,7 @@ SCHOOL_DESCRIPTION_KEYWORDS = [
     "prise en charge par l'opco",
     "aucun frais pour le candidat",
     "aucun frais de formation",
-    "iscod", "icademie", "i-cademie",
+    "iscod", "icademie", "i-cademie", "ifcv",
     # Generic CFA / training org patterns
     "organisme de formation",
     "centre de formation",
@@ -114,6 +114,13 @@ SCHOOL_DESCRIPTION_KEYWORDS = [
     "vous propose une formation en alternance",
     "formation en alternance reconnue",
     "nous vous proposons une formation",
+    "en partenariat avec ifcv",
+    "en partenariat avec l'ifcv",
+    "en partenariat avec un cfa",
+    "en partenariat avec une école",
+    "en partenariat avec une ecole",
+    "en partenariat avec notre école",
+    "en partenariat avec notre ecole",
     "entreprises partenaires",
     "école partenaire", "ecole partenaire",
     # School posting for a client company (e.g. "Auguste Académie recherche pour l'un de ses clients")

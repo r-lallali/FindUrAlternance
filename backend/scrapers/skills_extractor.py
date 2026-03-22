@@ -441,7 +441,7 @@ def is_alternance_offer(title: str, description: Optional[str] = None,
     # Specific check for excluded legal forms (pro and apprenticeship)
     # The user specifically requested to exclude BOTH pro and apprenticeship
     is_legal_form = any(kw in text for kw in ["contrat de professionnalisation", "contrat pro", "professionnalisation", "apprentissage", "apprenti"])
-    if is_legal_form and not any(kw in title_val for kw in ["alternance", "alternant"]):
+    if is_legal_form and not any(kw in title_val for kw in ["alternance", "alternant"]) and "alternance" not in contract_val:
         return False
 
     # Check for negative signals (non-alternance CDD/CDI patterns)

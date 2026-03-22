@@ -63,7 +63,7 @@ class CadremploiScraper(BaseScraper):
 
         search_terms = ["alternance", "apprentissage", "contrat de professionnalisation"]
 
-        async with AsyncSession(impersonate="chrome131") as session:
+        async with AsyncSession(impersonate="chrome110") as session:
             for term in search_terms:
                 self.logger.info(f"Cadremploi: Searching for '{term}'")
 

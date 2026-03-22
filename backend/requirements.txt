@@ -9,6 +9,6 @@ python-dateutil==2.9.0
 passlib[bcrypt]==1.7.4
 pyjwt==2.11.0
 psycopg2-binary==2.9.9
-curl_cffi==0.7.2
+curl_cffi==0.10.0
 aiohttp==3.10.5
 spacy>=3.7,<4.0

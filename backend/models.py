@@ -42,7 +42,7 @@ class Offer(Base):
     salary_min = Column(String(50), nullable=True)
     salary_max = Column(String(50), nullable=True)
     description = Column(Text, nullable=True)
-    profile = Column(String(500), nullable=True)
+    profile = Column(Text, nullable=True)
     category = Column(String(200), nullable=True)
 
     # IT Skills & Technologies (stored as JSON lists)

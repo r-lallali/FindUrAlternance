@@ -517,28 +517,33 @@ def enrich_location(location: Optional[str]) -> tuple[Optional[str], Optional[st
     return enriched_location, dept_code
 
 
+_EDUCATION_LEVELS = [
+    ("BAC+5", ["bac+5", "bac + 5", "bac 5", "master", "ingénieur", "ingenieur", "m2", "m1", "niveau 7", "niveau 6"]),
+    ("BAC+4", ["bac+4", "bac + 4", "bac 4", "maîtrise", "maitrise"]),
+    ("BAC+3", ["bac+3", "bac + 3", "bac 3", "licence", "bachelor", "l3"]),
+    ("BAC+2", ["bac+2", "bac + 2", "bac 2", "bts", "dut", "but", "deug"]),
+    ("BAC+1", ["bac+1", "bac + 1", "bac 1"]),
+]
+
+
 def normalize_profile(profile: Optional[str]) -> Optional[str]:
-    """Normalize education level profile strings."""
+    """Normalize an education level string to BAC+X format, or None if unrecognized."""
     if not profile:
         return None
+    text = profile.lower()
+    for level, keywords in _EDUCATION_LEVELS:
+        if any(kw in text for kw in keywords):
+            return level
+    return None
 
-    profile_lower = profile.lower()
 
-    level_mapping = {
-        "bac+5": ["bac+5", "bac + 5", "master", "ingénieur", "ingenieur", "m2", "m1"],
-        "bac+4": ["bac+4", "bac + 4", "maîtrise", "maitrise"],
-        "bac+3": ["bac+3", "bac + 3", "licence", "bachelor", "l3"],
-        "bac+2": ["bac+2", "bac + 2", "bts", "dut", "deug"],
-        "bac": ["bac pro", "baccalauréat", "baccalaureat", "niveau bac", "niveau 4"],
-        "cap/bep": ["cap", "bep", "niveau 3"],
-    }
-
-    for level, keywords in level_mapping.items():
-        for keyword in keywords:
-            if keyword in profile_lower:
-                return level
-
-    return profile
+def extract_education_level(title: str, description: Optional[str] = None) -> Optional[str]:
+    """Extract education level (BAC+1 to BAC+5) from offer title and description."""
+    text = f"{(title or '').lower()} {(description or '').lower()}"
+    for level, keywords in _EDUCATION_LEVELS:
+        if any(kw in text for kw in keywords):
+            return level
+    return None
 
 
 def normalize_salary(salary_text: Optional[str]) -> tuple[Optional[str], Optional[str]]:

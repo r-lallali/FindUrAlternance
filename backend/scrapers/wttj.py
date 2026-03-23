@@ -150,16 +150,13 @@ class WelcomeToTheJungleScraper(BaseScraper):
 
             # Education level mapping
             edu = raw_data.get("education_level", "")
-            profile_val = None
             edu_map = {
-                "bac": "Bac",
-                "bac_2": "Bac+2",
-                "bac_3": "Bac+3",
-                "bac_4": "Bac+4",
-                "bac_5": "Bac+5",
+                "bac_2": "BAC+2",
+                "bac_3": "BAC+3",
+                "bac_4": "BAC+4",
+                "bac_5": "BAC+5",
             }
-            if edu in edu_map:
-                profile_val = edu_map[edu]
+            profile_val = edu_map.get(edu)
 
             return {
                 "title": clean_text(title),

@@ -271,7 +271,7 @@ class CadremploiScraper(BaseScraper):
                 "salary": salary,
                 "description": clean_text(description, preserve_newlines=True)
                 or "Voir l'offre pour la description",
-                "profile": clean_text(profil.get("description") or "", preserve_newlines=True) or None,
+                "profile": None,
                 "category": None,
                 "publication_date": pub_date,
                 "source": "cadremploi",

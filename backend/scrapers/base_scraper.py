@@ -11,6 +11,7 @@ import logging
 from abc import ABC, abstractmethod
 from typing import List, Dict, Any, Optional
 from scrapers.skills_extractor import extract_skills, extract_skills_flat, is_alternance_offer, categorize_offer
+from scrapers.utils import extract_education_level
 
 
 class BaseScraper(ABC):
@@ -82,5 +83,10 @@ class BaseScraper(ABC):
 
         # Check if it's a real alternance
         offer["is_alternance"] = is_alternance_offer(title, description, contract_type)
+
+        # Education level: prefer existing valid value, fallback to text extraction
+        existing_profile = offer.get("profile")
+        if not existing_profile:
+            offer["profile"] = extract_education_level(title, description)
 
         return offer

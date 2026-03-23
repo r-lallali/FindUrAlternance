@@ -1245,17 +1245,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function formatSource(source) {
         const names = {
-            labonnealternance: 'La Bonne Alternance',
-            francetravail: 'France Travail',
-
-            linkedin: 'LinkedIn',
-            hellowork: 'HelloWork',
-            wttj: 'Welcome to the Jungle',
-            apec: 'Apec',
-            meteojob: 'Meteojob',
-            rhalternance: 'RH Alternance',
+            labonnealternance: 'LA BONNE ALTERNANCE',
+            francetravail: 'FRANCE TRAVAIL',
+            linkedin: 'LINKEDIN',
+            hellowork: 'HELLOWORK',
+            wttj: 'WELCOME TO THE JUNGLE',
+            apec: 'APEC',
+            meteojob: 'METEOJOB',
+            rhalternance: 'RH ALTERNANCE',
+            cadremploi: 'CADREMPLOI',
         };
-        return names[source] || source;
+        return names[source] || source.toUpperCase();
     }
 
     function truncate(str, maxLen) {

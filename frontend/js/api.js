@@ -63,6 +63,9 @@ const API = (() => {
         getOffer(id) {
             return request(`/offers/${id}`);
         },
+        fetchOfferDescription(id) {
+            return request(`/offers/${id}/fetch-description`, { method: 'POST' });
+        },
         getFilters() {
             return request('/filters');
         },

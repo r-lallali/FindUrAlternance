@@ -494,6 +494,53 @@ async def get_offer(
     return resp
 
 
+@router.post("/offers/{offer_id}/fetch-description")
+async def fetch_offer_description(
+    offer_id: str,
+    db: Session = Depends(get_db),
+):
+    """Lazily fetch and store the description of an offer that has none."""
+    import httpx
+    from bs4 import BeautifulSoup
+
+    offer = db.query(Offer).filter(Offer.id == offer_id).first()
+    if not offer:
+        raise HTTPException(status_code=404, detail="Offer not found")
+
+    if offer.description:
+        return {"description": offer.description}
+
+    if not offer.url:
+        return {"description": None}
+
+    FETCHERS = {
+        "hellowork": lambda soup: soup.select_one("#offer-panel") or soup.select_one("section.tw-peer"),
+    }
+    fetcher = FETCHERS.get(offer.source)
+    if not fetcher:
+        return {"description": None}
+
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36",
+        "Accept-Language": "fr-FR,fr;q=0.9",
+    }
+    try:
+        async with httpx.AsyncClient(timeout=15.0, headers=headers, follow_redirects=True) as client:
+            res = await client.get(offer.url)
+        if res.status_code == 200:
+            soup = BeautifulSoup(res.text, "html.parser")
+            el = fetcher(soup)
+            if el:
+                desc = el.get_text(separator="\n", strip=True)
+                db.query(Offer).filter(Offer.id == offer_id).update({"description": desc})
+                db.commit()
+                return {"description": desc}
+    except Exception:
+        pass
+
+    return {"description": None}
+
+
 @router.get("/filters", response_model=FilterOptions)
 async def get_filter_options(
     user: Optional[User] = Depends(get_optional_user),

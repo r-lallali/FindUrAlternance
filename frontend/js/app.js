@@ -1179,7 +1179,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
             renderModalSkills(offer);
 
-            document.getElementById('modalDescription').textContent = offer.description || 'Description non disponible.';
+            const descEl = document.getElementById('modalDescription');
+            if (offer.description) {
+                descEl.textContent = offer.description;
+            } else {
+                descEl.textContent = 'Chargement de la description…';
+                API.fetchOfferDescription(offerId).then(({ description }) => {
+                    descEl.textContent = description || 'Description non disponible.';
+                }).catch(() => {
+                    descEl.textContent = 'Description non disponible.';
+                });
+            }
 
             const modalLink = document.getElementById('modalLink');
             if (offer.url) {

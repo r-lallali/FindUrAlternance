@@ -501,6 +501,7 @@ async def fetch_offer_description(
 ):
     """Lazily fetch and store the description of an offer that has none."""
     import httpx
+    import json as _json
     from bs4 import BeautifulSoup
 
     offer = db.query(Offer).filter(Offer.id == offer_id).first()
@@ -510,18 +511,12 @@ async def fetch_offer_description(
     if offer.description:
         return {"description": offer.description}
 
-    if not offer.url:
-        return {"description": None}
-
-    FETCHERS = {
-        "hellowork": lambda soup: soup.select_one("#offer-panel") or soup.select_one("section.tw-peer"),
-    }
-    fetcher = FETCHERS.get(offer.source)
-    if not fetcher:
+    if not offer.url or offer.source not in ("hellowork",):
         return {"description": None}
 
     headers = {
         "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
         "Accept-Language": "fr-FR,fr;q=0.9",
     }
     try:
@@ -529,9 +524,27 @@ async def fetch_offer_description(
             res = await client.get(offer.url)
         if res.status_code == 200:
             soup = BeautifulSoup(res.text, "html.parser")
-            el = fetcher(soup)
-            if el:
-                desc = el.get_text(separator="\n", strip=True)
+            desc = None
+
+            # Primary: LD+JSON embedded job data
+            for script in soup.find_all("script", type="application/ld+json"):
+                try:
+                    data = _json.loads(script.string or "")
+                    if "Description" in data or "JobTitle" in data:
+                        desc_html = data.get("Description", "")
+                        if desc_html:
+                            desc = BeautifulSoup(desc_html, "html.parser").get_text(separator="\n", strip=True)
+                        break
+                except Exception:
+                    continue
+
+            # Fallback: CSS selectors
+            if not desc:
+                el = soup.select_one("#offer-panel") or soup.select_one("section.tw-peer")
+                if el:
+                    desc = el.get_text(separator="\n", strip=True)
+
+            if desc:
                 db.query(Offer).filter(Offer.id == offer_id).update({"description": desc})
                 db.commit()
                 return {"description": desc}
@@ -747,7 +760,6 @@ async def get_tech_stats(
     # List to store normalized match data for the accurate company counts
     match_list = []
     it_offers_count = 0
-
     for langs, fws, tools, certs, methods, company, title, desc_text, dept, cat in all_data:
         # 1. Process Metadata
         if company: company_field_counter.update([company.strip()])

@@ -77,9 +77,22 @@ class HelloWorkScraper(BaseScraper):
                 url = off.get("url")
                 if url:
                     async with desc_semaphore:
-                        full_desc = await self._fetch_description(client, url)
-                        if full_desc:
-                            off["description"] = full_desc
+                        for attempt in range(2):
+                            try:
+                                res = await client.get(url, timeout=20.0)
+                                if res.status_code == 200:
+                                    result = self._extract_from_page(res.text)
+                                    if result.get("description"):
+                                        off["description"] = result["description"]
+                                    if result.get("profile"):
+                                        off["profile"] = result["profile"]
+                                    break
+                                elif res.status_code == 429 and attempt == 0:
+                                    await asyncio.sleep(2)
+                            except Exception as e:
+                                self.logger.debug(f"Error fetching description for {url}: {e}")
+                                if attempt == 0:
+                                    await asyncio.sleep(1)
                 return off
 
             enrich_tasks = [enrich_description(off) for off in initial_offers]
@@ -88,17 +101,40 @@ class HelloWorkScraper(BaseScraper):
         self.logger.info(f"HelloWork finished with {len(all_offers)} enriched offers")
         return all_offers
 
+    @staticmethod
+    def _extract_from_page(html_text: str) -> dict:
+        """Extract description and profile from a HelloWork detail page."""
+        soup = BeautifulSoup(html_text, "html.parser")
+
+        # Primary: parse the embedded LD+JSON job data (most reliable)
+        for script in soup.find_all("script", type="application/ld+json"):
+            try:
+                data = json.loads(script.string or "")
+                if "Description" in data or "JobTitle" in data:
+                    desc_html = data.get("Description", "")
+                    profile_html = data.get("Profile", "")
+                    desc = BeautifulSoup(desc_html, "html.parser").get_text(separator="\n", strip=True) if desc_html else None
+                    profile = BeautifulSoup(profile_html, "html.parser").get_text(separator="\n", strip=True) if profile_html else None
+                    if desc:
+                        return {"description": desc, "profile": profile}
+            except Exception:
+                continue
+
+        # Fallback: CSS selectors
+        el = soup.select_one("#offer-panel") or soup.select_one("section.tw-peer")
+        if el:
+            return {"description": el.get_text(separator="\n", strip=True), "profile": None}
+
+        return {"description": None, "profile": None}
+
     async def _fetch_description(self, client: httpx.AsyncClient, url: str) -> Optional[str]:
         """Fetch the full job description from the detail page."""
         for attempt in range(2):
             try:
                 res = await client.get(url, timeout=20.0)
                 if res.status_code == 200:
-                    soup = BeautifulSoup(res.text, "html.parser")
-                    desc_el = soup.select_one("#offer-panel") or soup.select_one("section.tw-peer")
-                    if desc_el:
-                        return desc_el.get_text(separator="\n", strip=True)
-                    return None
+                    result = self._extract_from_page(res.text)
+                    return result.get("description")
                 elif res.status_code == 429 and attempt == 0:
                     await asyncio.sleep(2)
                     continue
@@ -262,7 +298,7 @@ class HelloWorkScraper(BaseScraper):
             "salary_min": salary_min,
             "salary_max": salary_max,
             "description": clean_text(raw_data["description"]),
-            "profile": None,
+            "profile": normalize_profile(clean_text(raw_data.get("profile"))) if raw_data.get("profile") else None,
             "category": None,
             "publication_date": pub_date or datetime.utcnow(),
             "source": "hellowork",

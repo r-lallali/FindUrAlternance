@@ -372,15 +372,6 @@ NON_ALTERNANCE_KEYWORDS = [
     "internship",
     "pas en alternance",
     "hors alternance",
-    "contrat de professionnalisation",
-    "contrat pro",
-    "professionnalisation",
-    "contrat de professionalisation",
-    "professionnalisme",
-    "apprentissage",
-    "apprenti",
-    "apprentie",
-    "contrat d'apprentissage",
     "livecampus",
     "poste à pourvoir immédiatement",
     "poste a pourvoir immediatement",
@@ -441,7 +432,7 @@ def is_alternance_offer(title: str, description: Optional[str] = None,
     # Specific check for excluded legal forms (pro and apprenticeship)
     # The user specifically requested to exclude BOTH pro and apprenticeship
     is_legal_form = any(kw in text for kw in ["contrat de professionnalisation", "contrat pro", "professionnalisation", "apprentissage", "apprenti"])
-    if is_legal_form and not any(kw in title_val for kw in ["alternance", "alternant"]) and "alternance" not in contract_val:
+    if is_legal_form and not has_alternance_in_title and "alternance" not in contract_val and not has_alternance:
         return False
 
     # Check for negative signals (non-alternance CDD/CDI patterns)
@@ -505,6 +496,12 @@ def is_alternance_offer(title: str, description: Optional[str] = None,
             
         # Check for standalone "CDI" if no alternance keywords are present
         if "cdi" in text and not any(kw in text for kw in ["alternance", "apprentissage", "contrat pro"]):
+            return False
+
+    # Final guard: no alternance signal at all + explicitly non-alternance contract → reject
+    if not has_alternance:
+        _NON_ALT_CONTRACTS = ("cdi", "cdd", "intérim", "interim", "indépendant", "freelance", "stage")
+        if contract_val and any(c in contract_val for c in _NON_ALT_CONTRACTS):
             return False
 
     return True

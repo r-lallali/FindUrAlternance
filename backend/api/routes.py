@@ -1590,6 +1590,7 @@ async def fix_confidential_companies(background_tasks: BackgroundTasks, db: Sess
 async def fix_placeholder_descriptions(background_tasks: BackgroundTasks, db: Session = Depends(get_db), _: None = Depends(verify_admin_key)):
     """Refetch real descriptions for HelloWork offers that have placeholder text or NULL description."""
     import httpx
+    import json as _json
     from bs4 import BeautifulSoup
 
     PLACEHOLDER = "Voir l'offre pour la description complète"
@@ -1608,11 +1609,26 @@ async def fix_placeholder_descriptions(background_tasks: BackgroundTasks, db: Se
     )
     offer_data = [(o.id, o.url) for o in offers_to_fix]
 
+    def _extract_desc(html_text: str):
+        soup = BeautifulSoup(html_text, "html.parser")
+        for script in soup.find_all("script", type="application/ld+json"):
+            try:
+                data = _json.loads(script.string or "")
+                if "Description" in data or "JobTitle" in data:
+                    desc_html = data.get("Description", "")
+                    if desc_html:
+                        return BeautifulSoup(desc_html, "html.parser").get_text(separator="\n", strip=True)
+            except Exception:
+                continue
+        el = soup.select_one("#offer-panel") or soup.select_one("section.tw-peer")
+        return el.get_text(separator="\n", strip=True) if el else None
+
     async def refetch_descriptions():
         from database import SessionLocal
         semaphore = asyncio.Semaphore(5)
         headers = {
             "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
             "Accept-Language": "fr-FR,fr;q=0.9",
         }
         updated = 0
@@ -1625,10 +1641,8 @@ async def fix_placeholder_descriptions(background_tasks: BackgroundTasks, db: Se
                         async with httpx.AsyncClient(timeout=20.0, headers=headers, follow_redirects=True) as client:
                             res = await client.get(url)
                         if res.status_code == 200:
-                            soup = BeautifulSoup(res.text, "html.parser")
-                            desc_el = soup.select_one("#offer-panel") or soup.select_one("section.tw-peer")
-                            if desc_el:
-                                desc = desc_el.get_text(separator="\n", strip=True)
+                            desc = _extract_desc(res.text)
+                            if desc:
                                 fix_db = SessionLocal()
                                 try:
                                     fix_db.query(Offer).filter(Offer.id == offer_id).update({"description": desc})
@@ -1644,6 +1658,7 @@ async def fix_placeholder_descriptions(background_tasks: BackgroundTasks, db: Se
                             await asyncio.sleep(1)
 
         await asyncio.gather(*[fetch_one(oid, url) for oid, url in offer_data])
+        print(f"fix-descriptions: {updated}/{len(offer_data)} offres mises à jour.")
 
     background_tasks.add_task(refetch_descriptions)
     return {"queued": len(offer_data), "message": f"{len(offer_data)} offres HelloWork sans description mises en file de refetch."}

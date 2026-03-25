@@ -915,20 +915,27 @@ document.addEventListener('DOMContentLoaded', () => {
                 let targetOffset = 0;
                 if (nextFullData && nextFullData.length > 0) {
                     const clickTime = getTimelinePeriodTime(closest.data.period, scale);
-                    let minDiff = Infinity;
-                    let bestIndex = nextFullData.length - 1;
-
-                    for (let i = 0; i < nextFullData.length; i++) {
-                        const t = getTimelinePeriodTime(nextFullData[i].period, nextScale);
-                        const diff = Math.abs(t - clickTime);
-                        if (diff < minDiff) {
-                            minDiff = diff;
-                            bestIndex = i;
-                        }
+                    // Compute the end of the clicked period so we land on the most recent sub-period
+                    let clickEndTime;
+                    if (scale === 'month') {
+                        const parts = closest.data.period.split('-');
+                        clickEndTime = new Date(parseInt(parts[0]), parseInt(parts[1]), 1).getTime();
+                    } else if (scale === 'year') {
+                        clickEndTime = new Date(parseInt(closest.data.period.split('-')[0]) + 1, 0, 1).getTime();
+                    } else if (scale === 'week') {
+                        clickEndTime = clickTime + 7 * 86400000;
+                    } else {
+                        clickEndTime = clickTime + 86400000;
                     }
 
-                    const maxP = nextScale === 'day' ? 3 : (nextScale === 'week' ? 4 : (nextScale === 'month' ? 3 : 12));
-                    let desiredEndIndex = bestIndex + Math.ceil(maxP / 2);
+                    // Find the last sub-period that starts before the end of the clicked period
+                    let bestIndex = 0;
+                    for (let i = 0; i < nextFullData.length; i++) {
+                        const t = getTimelinePeriodTime(nextFullData[i].period, nextScale);
+                        if (t < clickEndTime) bestIndex = i;
+                    }
+
+                    let desiredEndIndex = bestIndex + 1;
                     if (desiredEndIndex >= nextFullData.length) desiredEndIndex = nextFullData.length;
 
                     targetOffset = nextFullData.length - desiredEndIndex;

@@ -6,10 +6,10 @@ services:
     container_name: fua-backend
     ports:
       - "3080:3080"
+    env_file:
+      - .env
     environment:
-      - DATABASE_URL=${DATABASE_URL:-postgresql://postgres:ifr9kfu5xlkizn6x@51.210.6.173:5431/fua}
       - TZ=Europe/Paris
-      - ADMIN_API_KEY=${ADMIN_API_KEY:-fua-admin-secret-key-change-in-production}
     volumes:
       - ./data:/app/data
     restart: always

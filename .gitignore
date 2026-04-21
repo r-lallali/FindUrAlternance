@@ -1,0 +1,42 @@
+# Secrets
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+.venv/
+*.egg-info/
+.pytest_cache/
+
+# Data / dumps
+data/
+*.sqlite
+*.sqlite3
+*.db
+bpce_offers.json
+debug.json
+stats.json
+
+# Editor / OS
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Claude / local notes
+plan.md
+AI_SECURITY_FIX.md
